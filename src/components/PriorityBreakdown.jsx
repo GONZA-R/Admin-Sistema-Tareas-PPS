@@ -1,53 +1,38 @@
 import React from "react";
 
 export default function PriorityBreakdown() {
-  // Datos fijos por ahora (se pueden conectar al backend más adelante)
-  const data = {
-    alta: 3,
-    media: 1,
-    baja: 1,
-  };
-
+  const data = { alta: 3, media: 1, baja: 1 };
   const total = Object.values(data).reduce((a, b) => a + b, 0);
 
-  const percent = (value) =>
-    total > 0 ? ((value / total) * 100).toFixed(0) : 0;
+  const percent = (v) => (total ? ((v / total) * 100).toFixed(0) : 0);
+
+  const items = [
+    { label: "Alta", value: data.alta, color: "text-orange-600" },
+    { label: "Media", value: data.media, color: "text-yellow-600" },
+    { label: "Baja", value: data.baja, color: "text-green-600" },
+  ];
 
   return (
-    <div className="w-full bg-white shadow rounded-xl p-6">
-      <h2 className="text-xl font-bold mb-2">Tareas por Prioridad</h2>
-      <p className="text-gray-500 mb-4">Distribución de tareas activas</p>
+    <div className="w-full bg-white shadow rounded-xl p-4">
+      <h2 className="text-lg font-bold">Tareas por Prioridad</h2>
 
-      <div className="space-y-3">
-        {/* Alta */}
-        <div className="flex justify-between p-2 border rounded-md">
-          <span className="font-semibold text-orange-600">Alta</span>
-          <span>
-            <strong>{data.alta}</strong> ({percent(data.alta)}%)
-          </span>
-        </div>
-
-        {/* Media */}
-        <div className="flex justify-between p-2 border rounded-md">
-          <span className="font-semibold text-yellow-600">Media</span>
-          <span>
-            <strong>{data.media}</strong> ({percent(data.media)}%)
-          </span>
-        </div>
-
-        {/* Baja */}
-        <div className="flex justify-between p-2 border rounded-md">
-          <span className="font-semibold text-green-600">Baja</span>
-          <span>
-            <strong>{data.baja}</strong> ({percent(data.baja)}%)
-          </span>
-        </div>
+      <div className="mt-3 space-y-2">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            className="flex justify-between items-center p-2 border rounded-md"
+          >
+            <span className={`font-semibold ${item.color}`}>{item.label}</span>
+            <span className="text-sm">
+              <strong>{item.value}</strong> • {percent(item.value)}%
+            </span>
+          </div>
+        ))}
       </div>
 
-      {/* Total */}
-      <div className="mt-4 bg-gray-100 p-3 rounded-md text-center">
-        <p className="font-bold text-gray-700">
-          Total Activas: {total} tareas
+      <div className="mt-3 bg-gray-100 p-2 rounded-md text-center">
+        <p className="font-semibold text-gray-700 text-sm">
+          Total: {total} tareas
         </p>
       </div>
     </div>

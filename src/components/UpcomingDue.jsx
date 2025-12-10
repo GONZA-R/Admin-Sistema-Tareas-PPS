@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function UpcomingDue({ tasks }) {
+export default function UpcomingDue({ tasks, fullHeight = false }) {
   const [selectedTask, setSelectedTask] = useState(null);
 
   // Datos de ejemplo si no llegan desde backend
@@ -46,12 +46,15 @@ export default function UpcomingDue({ tasks }) {
   return (
     <>
       {/* LISTA PRINCIPAL */}
-      <div className="bg-white rounded-xl shadow-md p-5 h-full border border-gray-200">
+      <div
+        className={`bg-white rounded-xl shadow-md p-5 border border-gray-200 
+        ${fullHeight ? "h-full flex flex-col" : ""}`}
+      >
         <h2 className="text-xl font-semibold mb-4 text-gray-800">
           Próximos Vencimientos
         </h2>
 
-        <ul className="space-y-3">
+        <ul className="space-y-3 flex-1 overflow-y-auto">
           {sample.map((t) => (
             <li
               key={t.id}
@@ -104,7 +107,8 @@ export default function UpcomingDue({ tasks }) {
               <div className="space-y-2 mb-5">
                 <p><strong>Responsable:</strong> {selectedTask.assignee}</p>
 
-                <p><strong>Prioridad:</strong>{" "}
+                <p>
+                  <strong>Prioridad:</strong>{" "}
                   <span
                     className={`px-2 py-1 rounded-full text-sm ${priorityStyle[selectedTask.priority]}`}
                   >
@@ -145,13 +149,18 @@ export default function UpcomingDue({ tasks }) {
               <h3 className="text-lg font-semibold mb-3">Archivos Adjuntos</h3>
               <div className="space-y-2 mb-5">
                 {selectedTask.attachments?.length > 0 ? (
-                  selectedTask.attachments.map(f => (
+                  selectedTask.attachments.map((f) => (
                     <div
                       key={f.id}
                       className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex justify-between items-center"
                     >
                       <span className="font-medium">{f.name}</span>
-                      <a href={f.url} className="text-blue-600 hover:underline text-sm">Descargar</a>
+                      <a
+                        href={f.url}
+                        className="text-blue-600 hover:underline text-sm"
+                      >
+                        Descargar
+                      </a>
                     </div>
                   ))
                 ) : (
