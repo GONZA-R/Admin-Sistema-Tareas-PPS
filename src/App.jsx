@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import TasksManagement from "./pages/TasksManagement";
 import UsersManagement from "./pages/UsersManagement";
+import EmployeeTasks from  "./pages/EmployeeTasks";
 import Navbar from "./components/Navbar";
 
 function App() {
@@ -11,9 +12,11 @@ function App() {
       <Navbar />
       <div className="p-4">
         <Routes>
+          <Route path="/employees" element={<EmployeeTasks/>} />
           <Route path="/" element={<Dashboard />} />
           <Route path="/tasks" element={<TasksManagement />} />
           <Route path="/users" element={<UsersManagement />} />
+          
         </Routes>
       </div>
     </div>
