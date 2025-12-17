@@ -1,37 +1,54 @@
-// src/components/UserModal.jsx
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 
 export default function UserModal({ open, onClose, onSave, userToEdit }) {
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("Empleado");
-  const [status, setStatus] = useState("Activo");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("empleado");
+  const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
     if (userToEdit) {
-      setName(userToEdit.name);
+      setUsername(userToEdit.username);
       setEmail(userToEdit.email);
-      setRole(userToEdit.role);
-      setStatus(userToEdit.status);
+      setRole(userToEdit.role || "empleado");
+      setIsActive(userToEdit.is_active);
+      setPassword("");
     } else {
-      setName("");
+      setUsername("");
       setEmail("");
-      setRole("Empleado");
-      setStatus("Activo");
+      setPassword("");
+      setRole("empleado");
+      setIsActive(true);
     }
   }, [userToEdit]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!name || !email) return alert("Completa todos los campos");
-    onSave({
-      name,
+
+    if (!username || !email) {
+      alert("Completa todos los campos obligatorios");
+      return;
+    }
+
+    if (!userToEdit && !password) {
+      alert("La contraseña es obligatoria al crear un usuario");
+      return;
+    }
+
+    const payload = {
+      username,
       email,
       role,
-      status,
-      id: userToEdit ? userToEdit.id : Date.now(),
-    });
+      is_active: isActive,
+    };
+
+    if (password) {
+      payload.password = password;
+    }
+
+    onSave(payload);
     onClose();
   };
 
@@ -46,15 +63,20 @@ export default function UserModal({ open, onClose, onSave, userToEdit }) {
         >
           <X className="w-5 h-5" />
         </button>
-        <h2 className="text-lg font-semibold mb-4">{userToEdit ? "Editar Usuario" : "Nuevo Usuario"}</h2>
+
+        <h2 className="text-lg font-semibold mb-4">
+          {userToEdit ? "Editar Usuario" : "Nuevo Usuario"}
+        </h2>
+
         <form className="space-y-4" onSubmit={handleSubmit}>
           <input
             type="text"
-            placeholder="Nombre"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            placeholder="Nombre de usuario"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
           />
+
           <input
             type="email"
             placeholder="Email"
@@ -62,22 +84,37 @@ export default function UserModal({ open, onClose, onSave, userToEdit }) {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
           />
+
+          <input
+            type="password"
+            placeholder={
+              userToEdit
+                ? "Nueva contraseña (opcional)"
+                : "Contraseña"
+            }
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+          />
+
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
           >
-            <option>Administrador</option>
-            <option>Empleado</option>
+            <option value="admin">Administrador</option>
+            <option value="empleado">Empleado</option>
           </select>
+
           <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            value={isActive ? "true" : "false"}
+            onChange={(e) => setIsActive(e.target.value === "true")}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
           >
-            <option>Activo</option>
-            <option>Inactivo</option>
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
           </select>
+
           <button
             type="submit"
             className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"

@@ -1,223 +1,228 @@
-// src/components/NewTaskModal.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Upload, Trash2 } from "lucide-react";
+import api from "../services/api";
 
 export default function NewTaskModal({ open, onClose, onCreate }) {
+
+  /* =========================
+     ESTADOS
+  ========================= */
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("media");
-  const [status, setStatus] = useState("por hacer");
+
+  const [priority, setPriority] = useState("Media");
+  const [status, setStatus] = useState("Pendiente");
+
+  const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
+
   const [assignedTo, setAssignedTo] = useState("");
-  const [emailNotification, setEmailNotification] = useState(false);
+  const [users, setUsers] = useState([]);
+
   const [attachments, setAttachments] = useState([]);
 
+  /* =========================
+     CARGAR USUARIOS (HOOK OK)
+  ========================= */
+  useEffect(() => {
+    if (!open) return;
+
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem("access");
+        const res = await api.get("/users/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUsers(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error("Error cargando usuarios", err);
+        setUsers([]);
+      }
+    };
+
+    fetchUsers();
+  }, [open]);
+
+  /* =========================
+     SALIDA CONTROLADA (OK)
+  ========================= */
   if (!open) return null;
 
+  /* =========================
+     ARCHIVOS (VISUAL)
+  ========================= */
   const handleFileUpload = (e) => {
     const files = e.target.files;
     if (!files) return;
 
-    const newAttachments = Array.from(files).map((file) => ({
+    const mapped = Array.from(files).map((file) => ({
       id: `${Date.now()}-${file.name}`,
       name: file.name,
-      size: file.size,
-      url: URL.createObjectURL(file),
     }));
 
-    setAttachments([...attachments, ...newAttachments]);
+    setAttachments((prev) => [...prev, ...mapped]);
   };
 
   const handleRemoveAttachment = (id) => {
-    setAttachments(attachments.filter((a) => a.id !== id));
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const handleCreate = (e) => {
+  /* =========================
+     MAPEO DRF
+  ========================= */
+  const mapPriority = {
+    Alta: "alta",
+    Media: "media",
+    Baja: "baja",
+  };
+
+  const mapStatus = {
+    Pendiente: "pendiente",
+    "En Progreso": "en_progreso",
+    Completada: "completada",
+  };
+
+  /* =========================
+     CREAR TAREA
+  ========================= */
+  const handleCreate = async (e) => {
     e.preventDefault();
-    const newTask = {
-      title,
-      description,
-      priority,
-      status,
-      dueDate,
-      assignedTo,
-      emailNotification,
-      attachments,
-    };
-    if (onCreate) onCreate(newTask);
-    onClose();
+
+    try {
+      const token = localStorage.getItem("access");
+
+      const payload = {
+        title,
+        description,
+        priority: mapPriority[priority],
+        status: mapStatus[status],
+        start_date: startDate,
+        due_date: dueDate || null,
+        assigned_to: assignedTo ? Number(assignedTo) : null,
+      };
+
+      const res = await api.post("/tasks/", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      onCreate?.(res.data);
+      onClose();
+
+      // reset
+      setTitle("");
+      setDescription("");
+      setPriority("Media");
+      setStatus("Pendiente");
+      setStartDate("");
+      setDueDate("");
+      setAssignedTo("");
+      setAttachments([]);
+    } catch (err) {
+      console.error(err.response?.data || err);
+      alert("Error al crear la tarea");
+    }
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  };
-
+  /* =========================
+     UI MODERNA
+  ========================= */
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 px-6 py-3 flex items-center justify-between z-10">
-          <h2 className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
-            Nueva Tarea
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 w-full max-w-xl rounded-xl shadow-2xl overflow-hidden">
+
+        {/* HEADER */}
+        <div className="flex justify-between items-center px-6 py-4 border-b bg-gray-50 dark:bg-gray-800">
+          <h2 className="text-lg font-semibold">Nueva Tarea</h2>
+          <button onClick={onClose}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form */}
+        {/* FORM */}
         <form onSubmit={handleCreate} className="p-6 space-y-4">
-          {/* Título */}
-          <div>
-            <label className="block text-gray-700 dark:text-gray-200 mb-1">Título *</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
-              placeholder="Ej: Diseñar nueva interfaz"
-              required
-            />
-          </div>
 
-          {/* Descripción */}
-          <div>
-            <label className="block text-gray-700 dark:text-gray-200 mb-1">Descripción *</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none dark:bg-gray-800 dark:text-gray-100"
-              placeholder="Describe los detalles de la tarea..."
-              required
-            />
-          </div>
+          <input
+            placeholder="Título *"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
 
-          {/* Prioridad y Estado */}
+          <textarea
+            placeholder="Descripción *"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            required
+            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-gray-700 dark:text-gray-200 mb-1">Prioridad</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
-              >
-                <option value="alta">Alta</option>
-                <option value="media">Media</option>
-                <option value="baja">Baja</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-gray-700 dark:text-gray-200 mb-1">Estado</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
-              >
-                <option value="por hacer">Por hacer</option>
-                <option value="en progreso">En progreso</option>
-                <option value="completada">Completada</option>
-              </select>
-            </div>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="px-4 py-2 border rounded-lg"
+            >
+              <option>Alta</option>
+              <option>Media</option>
+              <option>Baja</option>
+            </select>
+
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="px-4 py-2 border rounded-lg"
+            >
+              <option>Pendiente</option>
+              <option>En Progreso</option>
+              <option>Completada</option>
+            </select>
           </div>
 
-          {/* Fecha de vencimiento y Asignado a */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-gray-700 dark:text-gray-200 mb-1">Vencimiento</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
-              />
-            </div>
-            <div>
-              <label className="block text-gray-700 dark:text-gray-200 mb-1">Asignado a</label>
-              <input
-                type="text"
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
-                placeholder="Nombre del usuario"
-              />
-            </div>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className="px-4 py-2 border rounded-lg" />
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="px-4 py-2 border rounded-lg" />
           </div>
 
-          {/* Archivos adjuntos */}
-          <div>
-            <label className="block text-gray-700 dark:text-gray-200 mb-1">Archivos adjuntos</label>
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-4 text-center hover:border-indigo-400 transition-colors cursor-pointer">
-              <input
-                type="file"
-                multiple
-                onChange={handleFileUpload}
-                className="hidden"
-                id="file-upload"
-              />
-              <label htmlFor="file-upload" className="flex flex-col items-center gap-1 cursor-pointer">
-                <Upload className="w-6 h-6 text-gray-400" />
-                <span className="text-gray-600 dark:text-gray-300 text-sm">Haz clic o arrastra archivos</span>
-              </label>
+          <select
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
+            className="px-4 py-2 border rounded-lg w-full"
+          >
+            <option value="">— Sin asignar —</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.username} (ID {u.id})
+              </option>
+            ))}
+          </select>
+
+          {/* ADJUNTOS */}
+          <label className="flex items-center gap-2 cursor-pointer text-sm">
+            <Upload className="w-4 h-4" />
+            Adjuntar archivos
+            <input type="file" multiple hidden onChange={handleFileUpload} />
+          </label>
+
+          {attachments.map((a) => (
+            <div key={a.id} className="flex justify-between text-sm">
+              {a.name}
+              <button type="button" onClick={() => handleRemoveAttachment(a.id)}>
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </button>
             </div>
+          ))}
 
-            {attachments.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {attachments.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                  >
-                    <div className="flex-1 truncate text-sm">{file.name}</div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAttachment(file.id)}
-                      className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Notificación por correo */}
-          <div className="flex items-center justify-between">
-            <span className="text-gray-700 dark:text-gray-200 text-sm">Notificación por correo</span>
-            <button
-              type="button"
-              onClick={() => setEmailNotification(!emailNotification)}
-              className={`w-12 h-6 flex items-center rounded-full px-1 transition ${
-                emailNotification ? "bg-indigo-600" : "bg-gray-300"
-              }`}
-            >
-              <div
-                className={`w-5 h-5 bg-white rounded-full shadow transform transition ${
-                  emailNotification ? "translate-x-6" : "translate-x-0"
-                }`}
-              ></div>
-            </button>
-          </div>
-
-          {/* Botones */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
+          <div className="flex gap-3 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 border py-2 rounded-lg">
               Cancelar
             </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-colors"
-            >
+            <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg">
               Crear Tarea
             </button>
           </div>
+
         </form>
       </div>
     </div>

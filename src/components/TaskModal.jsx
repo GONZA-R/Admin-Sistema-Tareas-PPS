@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
 
 const calculateDaysLeft = (dueDate) => {
   if (!dueDate) return "N/A";
@@ -23,35 +24,63 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState(task?.comments || []);
   const commentsEndRef = useRef(null);
+  const [files, setFiles] = useState(task?.files || []);
 
   useEffect(() => {
     setNewStatus(task?.status || "");
     setComments(task?.comments || []);
+    setFiles(task?.files || []);
   }, [task]);
 
   useEffect(() => {
-    // Scroll al final de los comentarios
     commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [comments]);
 
   if (!isOpen || !task) return null;
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (!newComment.trim()) return;
-    setComments([
-      ...comments,
-      {
-        id: Date.now(),
+
+    try {
+      // Crear comentario en backend
+      const response = await axios.post(`http://127.0.0.1:8000/api/comments/`, {
+        task: task.id,
         text: newComment,
-        sender: "enviado",
-        date: new Date().toLocaleString("es-AR"),
-      },
-    ]);
-    setNewComment("");
+      });
+
+      setComments([
+        ...comments,
+        {
+          id: response.data.id,
+          text: response.data.text,
+          sender: "enviado",
+          date: response.data.created_at,
+        },
+      ]);
+
+      setNewComment("");
+    } catch (error) {
+      console.error("Error al agregar comentario:", error);
+    }
   };
 
-  const handleSaveChanges = () => {
-    onUpdate({ ...task, status: newStatus, comments });
+  const handleSaveChanges = async () => {
+    try {
+      const response = await axios.patch(`http://127.0.0.1:8000/api/tasks/${task.id}/`, {
+        status: newStatus,
+      });
+
+      const updatedTask = {
+        ...task,
+        status: response.data.status,
+        comments,
+        files,
+      };
+
+      onUpdate(updatedTask);
+    } catch (error) {
+      console.error("Error al actualizar tarea:", error);
+    }
   };
 
   return (
@@ -89,11 +118,11 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
             <div><span className="font-semibold">Asignado por:</span> {task.assignedBy}</div>
           </div>
 
-          {task.files && task.files.length > 0 && (
+          {files && files.length > 0 && (
             <div className="text-sm">
               <span className="font-semibold">Archivos:</span>
               <ul className="ml-4 list-disc text-gray-600">
-                {task.files.map((f, i) => (<li key={i}>{f.name}</li>))}
+                {files.map((f, i) => (<li key={i}>{f.name}</li>))}
               </ul>
             </div>
           )}

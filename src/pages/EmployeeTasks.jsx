@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import TaskModal from "../components/TaskModal";
 
 // Funciones auxiliares
@@ -23,58 +24,38 @@ const formatDate = (d) => {
 const TaskList = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
-
+  const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: "Configurar servidor",
-      status: "pendiente",
-      priority: "alta",
-      description: "Instalar Ubuntu Server, firewall y SSH.",
-      dueDate: "2025-12-15",
-      assignedBy: "Jefe de Sistemas",
-      files: [{ name: "guia_instalacion.pdf" }],
-      comments: [
-        { text: "Recordar configurar SSH key", date: "10/12/2025", type: "recibido" },
-      ],
-    },
-    {
-      id: 2,
-      title: "Enviar reporte semanal",
-      status: "en_progreso",
-      priority: "media",
-      description: "Enviar reporte a gerencia antes del viernes.",
-      dueDate: "2025-12-10",
-      assignedBy: "Gerente General",
-      files: null,
-      comments: [],
-    },
-    {
-      id: 3,
-      title: "Actualizar inventario",
-      status: "completada",
-      priority: "baja",
-      description: "Revisar nuevos equipos y actualizar sistema.",
-      dueDate: "2025-12-05",
-      assignedBy: "Jefe de Logística",
-      files: null,
-      comments: [],
-    },
-    {
-      id: 4,
-      title: "Revisar cámaras",
-      status: "pendiente",
-      priority: "alta",
-      description: "Verificar DVR y cámaras con fallas.",
-      dueDate: "2025-12-12",
-      assignedBy: "Jefe de Seguridad",
-      files: [{ name: "informe_camaras.pdf" }],
-      comments: [],
-    },
-  ]);
+  // Traer tareas desde backend
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await axios.get("http://127.0.0.1:8000/api/tasks/"); // Ajustar URL si corresponde
+        // Transformar los datos si es necesario (p. ej. assignedBy, comments)
+        const tasksFromBackend = response.data.map((t) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+          description: t.description,
+          dueDate: t.due_date,  // Ajusta según tu serializer
+          assignedBy: t.assigned_to_username || "N/A", // Puedes agregar en el serializer
+          files: t.attachments || [],
+          comments: t.comments || [],
+        }));
+        setTasks(tasksFromBackend);
+      } catch (error) {
+        console.error("Error al traer tareas:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, []);
 
   const openModal = (task) => {
     setSelectedTask(task);
@@ -86,7 +67,6 @@ const TaskList = () => {
     setIsModalOpen(false);
   };
 
-  // Actualizar tarea desde el modal
   const updateTask = (updatedTask) => {
     const newList = tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
     setTasks(newList);
@@ -99,6 +79,8 @@ const TaskList = () => {
       (priorityFilter === "" || task.priority === priorityFilter)
     );
   });
+
+  if (loading) return <p>Cargando tareas...</p>;
 
   return (
     <div className="p-6">
@@ -175,7 +157,7 @@ const TaskList = () => {
             </div>
           ))
         ) : (
-          <p>No hay tareas filtradas</p>
+          <p>No hay tareas disponibles.</p>
         )}
       </div>
 

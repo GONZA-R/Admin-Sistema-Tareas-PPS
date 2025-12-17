@@ -6,12 +6,12 @@ import { Bell, LogOut, Search, UserCircle } from "lucide-react";
 import UserProfileModal from "./UserProfileModal";
 import UserSettingsModal from "./UserSettingsModal";
 
-export default function Navbar() {
+export default function Navbar({ setIsAuthenticated }) {
   const navigate = useNavigate();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [modalType, setModalType] = useState(null); // "profile" | "settings" | null
+  const [modalType, setModalType] = useState(null);
 
   const notifications = [
     { id: 1, msg: "Nueva tarea asignada a Juan", time: "Hace 2 min" },
@@ -19,7 +19,14 @@ export default function Navbar() {
     { id: 3, msg: "Nuevo comentario en tarea #9", time: "Hace 30 min" },
   ];
 
+  // 🔥 LOGOUT ACTUALIZADO (sin recargar la página)
   const handleLogout = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+
+    // Avisamos al App.jsx
+    setIsAuthenticated(false);
+
     navigate("/login");
   };
 
@@ -149,7 +156,7 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* MODALES DE PERFIL Y AJUSTES */}
+      {/* MODALES */}
       <UserProfileModal
         open={modalType === "profile"}
         onClose={() => setModalType(null)}
