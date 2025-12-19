@@ -33,22 +33,30 @@ const TaskList = () => {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const response = await axios.get("http://127.0.0.1:8000/api/tasks/"); // Ajustar URL si corresponde
-        // Transformar los datos si es necesario (p. ej. assignedBy, comments)
+        const token = localStorage.getItem("access");
+        if (!token) throw new Error("No se encontró token, por favor logueate");
+
+        const response = await axios.get("http://127.0.0.1:8000/api/tasks/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
         const tasksFromBackend = response.data.map((t) => ({
           id: t.id,
           title: t.title,
           status: t.status,
           priority: t.priority,
           description: t.description,
-          dueDate: t.due_date,  // Ajusta según tu serializer
-          assignedBy: t.assigned_to_username || "N/A", // Puedes agregar en el serializer
+          dueDate: t.due_date,
+          startDate: t.start_date,
+          createdBy: t.created_by?.username || "N/A",  // ⚡ Aquí usamos created_by
           files: t.attachments || [],
           comments: t.comments || [],
         }));
+
         setTasks(tasksFromBackend);
       } catch (error) {
         console.error("Error al traer tareas:", error);
+        setTasks([]);
       } finally {
         setLoading(false);
       }
@@ -84,7 +92,7 @@ const TaskList = () => {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Lista de Tareas</h2>
+      <h2 className="text-2xl font-bold mb-6">Mis Tareas</h2>
 
       {/* FILTROS */}
       <div className="flex gap-4 mb-6">
@@ -146,7 +154,7 @@ const TaskList = () => {
               </div>
 
               <div className="text-sm text-gray-500 mt-1">
-                Asignado por: {task.assignedBy || "N/A"}
+                Creado por: {task.createdBy}
               </div>
 
               {task.comments && task.comments.length > 0 && (

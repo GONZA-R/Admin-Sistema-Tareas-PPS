@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import api from "../services/api";
 import NewTaskModal from "../components/NewTaskModal";
 import ConfirmModal from "../components/ConfirmModal";
+import TaskDetailModal from "../components/TaskDetailModal";
 
 export default function TasksManagement() {
   const [tasks, setTasks] = useState([]);
@@ -12,9 +13,13 @@ export default function TasksManagement() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
+  // Nuevo modal de detalle
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+
   /* =========================
      TRAER TAREAS
-     ========================= */
+  ========================= */
   const fetchTasks = async () => {
     try {
       const res = await api.get("/tasks/");
@@ -26,7 +31,7 @@ export default function TasksManagement() {
 
   /* =========================
      TRAER USUARIOS
-     ========================= */
+  ========================= */
   const fetchUsers = async () => {
     try {
       const res = await api.get("/users/");
@@ -42,16 +47,14 @@ export default function TasksManagement() {
   }, []);
 
   /* =========================
-     CREAR TAREA (ÚNICO POST)
-     ========================= */
+     CREAR TAREA
+  ========================= */
   const addTask = async (taskData) => {
     try {
       const token = localStorage.getItem("access");
-
       const res = await api.post("/tasks/", taskData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setTasks((prev) => [...prev, res.data]);
     } catch (err) {
       console.error("Error al crear tarea:", err.response?.data || err);
@@ -61,7 +64,7 @@ export default function TasksManagement() {
 
   /* =========================
      ELIMINAR TAREA
-     ========================= */
+  ========================= */
   const deleteTask = async () => {
     try {
       await api.delete(`/tasks/${taskToDelete}/`);
@@ -109,7 +112,11 @@ export default function TasksManagement() {
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="bg-white shadow rounded-lg p-3 grid grid-cols-[2fr_1fr_1fr_1fr_1fr_0.7fr] items-center gap-2"
+            onClick={() => {
+              setSelectedTask(task);
+              setDetailOpen(true);
+            }}
+            className="bg-white shadow rounded-lg p-3 grid grid-cols-[2fr_1fr_1fr_1fr_1fr_0.7fr] items-center gap-2 cursor-pointer hover:bg-gray-50 transition"
           >
             <div>
               <h2 className="font-semibold">{task.title}</h2>
@@ -117,14 +124,16 @@ export default function TasksManagement() {
             </div>
 
             <div>
-              <span className={`px-2 py-1 rounded-full text-xs ${priorityColor(task.priority)}`}>
+              <span
+                className={`px-2 py-1 rounded-full text-xs ${priorityColor(
+                  task.priority
+                )}`}
+              >
                 {task.priority}
               </span>
             </div>
 
-            <div className="text-sm text-gray-500">
-              {task.start_date}
-            </div>
+            <div className="text-sm text-gray-500">{task.start_date}</div>
 
             <div className="text-sm capitalize">{task.status}</div>
 
@@ -132,13 +141,25 @@ export default function TasksManagement() {
               {task.assigned_to ? task.assigned_to.username : "-"}
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log("Editar tarea", task);
+                  // abrir modal de edición en el futuro
+                }}
+                className="px-3 py-1 bg-sky-500 text-white text-xs rounded hover:bg-sky-600 transition"
+              >
+                Editar
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
                   setTaskToDelete(task.id);
                   setConfirmOpen(true);
                 }}
-                className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition"
               >
                 Eliminar
               </button>
@@ -153,6 +174,13 @@ export default function TasksManagement() {
         onClose={() => setOpenModal(false)}
         onCreate={addTask}
         users={users}
+      />
+
+      {/* MODAL DETALLE TAREA */}
+      <TaskDetailModal
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        task={selectedTask}
       />
 
       {/* CONFIRM */}

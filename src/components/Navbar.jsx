@@ -1,39 +1,123 @@
-import React, { useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, LogOut, Search, UserCircle } from "lucide-react";
+import { Bell, Search, UserCircle } from "lucide-react";
+import axios from "axios";
 
-// Modales
 import UserProfileModal from "./UserProfileModal";
 import UserSettingsModal from "./UserSettingsModal";
 
 export default function Navbar({ setIsAuthenticated }) {
   const navigate = useNavigate();
 
-  const [showNotifications, setShowNotifications] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
 
-  const notifications = [
-    { id: 1, msg: "Nueva tarea asignada a Juan", time: "Hace 2 min" },
-    { id: 2, msg: "Se completó la tarea #12", time: "Hace 10 min" },
-    { id: 3, msg: "Nuevo comentario en tarea #9", time: "Hace 30 min" },
-  ];
+  // Notificaciones
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
-  // 🔥 LOGOUT ACTUALIZADO (sin recargar la página)
+  const notifRef = useRef(null);
+  const userMenuRef = useRef(null);
+
+  /* ===============================
+      Logout
+  =============================== */
   const handleLogout = () => {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
-
-    // Avisamos al App.jsx
     setIsAuthenticated(false);
-
     navigate("/login");
   };
 
+  /* ===============================
+      Traer notificaciones
+  =============================== */
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem("access");
+      if (!token) return;
+
+      setLoadingNotifications(true);
+
+      const res = await axios.get(
+        "http://127.0.0.1:8000/api/notifications/",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setNotifications(res.data);
+    } catch (err) {
+      console.error("Error al traer notificaciones", err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  /* ===============================
+      Marcar como leída
+  =============================== */
+  const markAsRead = async (id) => {
+    try {
+      const token = localStorage.getItem("access");
+      if (!token) return;
+
+      await axios.post(
+        `http://127.0.0.1:8000/api/notifications/${id}/mark_read/`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, is_read: true } : n
+        )
+      );
+    } catch (err) {
+      console.error("Error al marcar notificación", err);
+    }
+  };
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  /* ===============================
+      Cargar notificaciones al montar
+  =============================== */
+  useEffect(() => {
+    const token = localStorage.getItem("access");
+    if (!token) return;
+    fetchNotifications();
+  }, []);
+
+  /* ===============================
+      Cerrar dropdowns al click afuera
+  =============================== */
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        notifRef.current &&
+        !notifRef.current.contains(e.target)
+      ) {
+        setNotificationsOpen(false);
+      }
+
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(e.target)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <>
-      {/* NAVBAR */}
-      <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200 p-3 px-6 flex items-center justify-between">
+      <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200 p-3 px-6 flex items-center justify-between relative z-30">
 
         {/* LEFT */}
         <div className="flex items-center gap-8">
@@ -57,34 +141,79 @@ export default function Navbar({ setIsAuthenticated }) {
             <input
               type="text"
               placeholder="Buscar..."
-              className="border border-gray-300 rounded-lg pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+              className="border border-gray-300 rounded-lg pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
           </div>
 
-          {/* NOTIFICATIONS */}
-          <button
-            title="Notificaciones"
-            className="relative p-2 hover:bg-gray-100 rounded-full transition"
-            onClick={() => setShowNotifications(true)}
-          >
-            <Bell className="w-6 h-6 text-gray-700" />
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full px-1.5">
-              {notifications.length}
-            </span>
-          </button>
+          {/* NOTIFICACIONES */}
+          <div className="relative" ref={notifRef}>
+            <button
+              className="relative p-2 hover:bg-gray-100 rounded-full"
+              onClick={() => {
+                setNotificationsOpen((v) => !v);
+                fetchNotifications();
+              }}
+            >
+              <Bell className="w-6 h-6 text-gray-700" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full px-1.5">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {notificationsOpen && (
+              <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 shadow-xl rounded-xl z-50">
+                <div className="p-3 border-b font-semibold text-sm">
+                  Notificaciones
+                </div>
+
+                <div className="max-h-80 overflow-y-auto">
+                  {loadingNotifications ? (
+                    <p className="p-4 text-sm text-gray-500">Cargando...</p>
+                  ) : notifications.length === 0 ? (
+                    <p className="p-4 text-sm text-gray-500">
+                      No hay notificaciones
+                    </p>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => markAsRead(n.id)}
+                        className={`px-4 py-3 text-sm cursor-pointer border-b last:border-b-0
+                          ${n.is_read ? "bg-white" : "bg-indigo-50 hover:bg-indigo-100"}
+                        `}
+                      >
+                        <p className="text-gray-800">{n.message}</p>
+                        <span className="text-xs text-gray-500">
+                          {new Date(n.created_at).toLocaleString("es-AR")}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setNotificationsOpen(false)}
+                  className="w-full text-sm py-2 hover:bg-gray-50"
+                >
+                  Cerrar
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* USER MENU */}
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="p-1 hover:bg-gray-100 rounded-full transition"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="p-1 hover:bg-gray-100 rounded-full"
             >
               <UserCircle className="w-8 h-8 text-gray-700" />
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 shadow-lg rounded-xl py-2 animate-fadeIn">
-
+              <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 shadow-lg rounded-xl py-2 z-50">
                 <button
                   className="dropdown-item"
                   onClick={() => {
@@ -111,50 +240,11 @@ export default function Navbar({ setIsAuthenticated }) {
                 >
                   Cerrar sesión
                 </button>
-
               </div>
             )}
           </div>
         </div>
       </nav>
-
-      {/* MODAL NOTIFICACIONES */}
-      {showNotifications && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
-          onClick={() => setShowNotifications(false)}
-        >
-          <div
-            className="bg-white p-5 rounded-xl shadow-xl w-96 max-h-[70vh] overflow-y-auto animate-fadeIn"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-bold mb-3">Notificaciones</h2>
-
-            {notifications.length === 0 ? (
-              <p className="text-gray-500 text-sm">No hay notificaciones</p>
-            ) : (
-              <ul className="space-y-3">
-                {notifications.map((n) => (
-                  <li
-                    key={n.id}
-                    className="border rounded-lg p-3 hover:bg-gray-50 transition cursor-pointer"
-                  >
-                    <p className="text-sm">{n.msg}</p>
-                    <span className="text-xs text-gray-500">{n.time}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <button
-              className="mt-4 w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition"
-              onClick={() => setShowNotifications(false)}
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* MODALES */}
       <UserProfileModal
@@ -167,40 +257,27 @@ export default function Navbar({ setIsAuthenticated }) {
         onClose={() => setModalType(null)}
       />
 
-      {/* EXTRA CSS */}
-      <style>
-        {`
-          .nav-item {
-            color: #555;
-            transition: 0.2s;
-          }
-          .nav-item:hover {
-            color: #4F46E5;
-          }
-
-          .dropdown-item {
-            display: block;
-            width: 100%;
-            text-align: left;
-            padding: 8px 14px;
-            font-size: 0.875rem;
-            color: #444;
-            transition: 0.2s;
-            border-radius: 0.375rem;
-          }
-          .dropdown-item:hover {
-            background: #f3f4f6;
-          }
-
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fadeIn {
-            animation: fadeIn 0.2s ease-out;
-          }
-        `}
-      </style>
+      <style>{`
+        .nav-item {
+          color: #555;
+          transition: 0.2s;
+        }
+        .nav-item:hover {
+          color: #4F46E5;
+        }
+        .dropdown-item {
+          width: 100%;
+          text-align: left;
+          padding: 8px 14px;
+          font-size: 0.875rem;
+          color: #444;
+          transition: 0.2s;
+          border-radius: 0.375rem;
+        }
+        .dropdown-item:hover {
+          background: #f3f4f6;
+        }
+      `}</style>
     </>
   );
 }

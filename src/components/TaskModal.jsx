@@ -42,17 +42,20 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
     if (!newComment.trim()) return;
 
     try {
-      // Crear comentario en backend
-      const response = await axios.post(`http://127.0.0.1:8000/api/comments/`, {
-        task: task.id,
-        text: newComment,
-      });
+      const token = localStorage.getItem("access");
+      if (!token) throw new Error("No se encontró token, por favor logueate");
+
+      const response = await axios.post(
+        `http://127.0.0.1:8000/api/comments/`,
+        { task: task.id, message: newComment },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       setComments([
         ...comments,
         {
           id: response.data.id,
-          text: response.data.text,
+          text: response.data.message,
           sender: "enviado",
           date: response.data.created_at,
         },
@@ -66,9 +69,14 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
 
   const handleSaveChanges = async () => {
     try {
-      const response = await axios.patch(`http://127.0.0.1:8000/api/tasks/${task.id}/`, {
-        status: newStatus,
-      });
+      const token = localStorage.getItem("access");
+      if (!token) throw new Error("No se encontró token, por favor logueate");
+
+      const response = await axios.patch(
+        `http://127.0.0.1:8000/api/tasks/${task.id}/`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       const updatedTask = {
         ...task,
@@ -89,7 +97,10 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-xl font-bold">{task.title}</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-xl font-bold">
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-800 text-xl font-bold"
+          >
             ×
           </button>
         </div>
@@ -99,7 +110,9 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
           <p className="text-gray-600">{task.description}</p>
 
           <div className="flex flex-wrap gap-4 text-sm text-gray-700">
-            <div><span className="font-semibold">Estado:</span> {task.status}</div>
+            <div>
+              <span className="font-semibold">Estado:</span> {task.status}
+            </div>
             <div>
               <span className="font-semibold">Prioridad:</span>{" "}
               <span
@@ -114,18 +127,41 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
                 {task.priority}
               </span>
             </div>
-            <div><span className="font-semibold">Vence:</span> {formatDate(task.dueDate)} ({calculateDaysLeft(task.dueDate)})</div>
-            <div><span className="font-semibold">Asignado por:</span> {task.assignedBy}</div>
+            <div>
+              <span className="font-semibold">Vence:</span>{" "}
+              {formatDate(task.dueDate)} ({calculateDaysLeft(task.dueDate)})
+            </div>
+            <div>
+              <span className="font-semibold">Creado por:</span> {task.createdBy}
+            </div>
           </div>
 
-          {files && files.length > 0 && (
-            <div className="text-sm">
-              <span className="font-semibold">Archivos:</span>
+          {/* Archivos adjuntos */}
+          <div className="text-sm">
+            <span className="font-semibold">Archivos adjuntos:</span>
+            {files && files.length > 0 ? (
               <ul className="ml-4 list-disc text-gray-600">
-                {files.map((f, i) => (<li key={i}>{f.name}</li>))}
+                {files.map((f, i) => (
+                  <li key={i}>
+                    {f.name ? (
+                      <a
+                        href={f.file || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {f.name}
+                      </a>
+                    ) : (
+                      f.file
+                    )}
+                  </li>
+                ))}
               </ul>
-            </div>
-          )}
+            ) : (
+              <p className="ml-4 text-gray-500 italic">No hay archivos adjuntos</p>
+            )}
+          </div>
 
           {/* Cambiar estado */}
           <div className="flex gap-2">
@@ -134,7 +170,13 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
                 key={s}
                 onClick={() => setNewStatus(s)}
                 className={`px-3 py-1 rounded border ${
-                  newStatus === s ? (s === "pendiente" ? "bg-blue-500 text-white" : s === "en_progreso" ? "bg-yellow-400 text-white" : "bg-green-500 text-white") : "bg-gray-100"
+                  newStatus === s
+                    ? s === "pendiente"
+                      ? "bg-blue-500 text-white"
+                      : s === "en_progreso"
+                      ? "bg-yellow-400 text-white"
+                      : "bg-green-500 text-white"
+                    : "bg-gray-100"
                 }`}
               >
                 {s.replace("_", " ").toUpperCase()}
@@ -145,10 +187,23 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
           {/* Seguimiento tipo chat */}
           <div className="flex-1 max-h-64 overflow-y-auto border-t border-b py-2">
             {comments.map((c) => (
-              <div key={c.id} className={`mb-2 flex ${c.sender === "enviado" ? "justify-end" : "justify-start"}`}>
-                <div className={`px-3 py-2 rounded-lg max-w-[70%] text-sm ${c.sender === "enviado" ? "bg-green-100 text-gray-800" : "bg-blue-100 text-gray-800"}`}>
+              <div
+                key={c.id}
+                className={`mb-2 flex ${
+                  c.sender === "enviado" ? "justify-end" : "justify-start"
+                }`}
+              >
+                <div
+                  className={`px-3 py-2 rounded-lg max-w-[70%] text-sm ${
+                    c.sender === "enviado"
+                      ? "bg-green-100 text-gray-800"
+                      : "bg-blue-100 text-gray-800"
+                  }`}
+                >
                   {c.text}
-                  <div className="text-xs text-gray-500 mt-1 text-right">{c.date}</div>
+                  <div className="text-xs text-gray-500 mt-1 text-right">
+                    {c.date}
+                  </div>
                 </div>
               </div>
             ))}
