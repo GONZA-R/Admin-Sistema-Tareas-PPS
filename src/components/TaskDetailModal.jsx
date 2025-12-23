@@ -1,27 +1,15 @@
 import { X } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import api from "../services/api";
 
-const calculateDaysLeft = (dueDate) => {
-  if (!dueDate) return "N/A";
-  const today = new Date();
-  const due = new Date(dueDate);
-  const diffTime = due - today;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays >= 0 ? `${diffDays} día(s)` : "Vencida";
-};
-
 export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
-  const [status, setStatus] = useState("");
-  const [newComment, setNewComment] = useState("");
-  const [comments, setComments] = useState([]);
+  const [status, setStatus] = useState("pendiente");
   const [users, setUsers] = useState([]);
-
   const [enableDelegation, setEnableDelegation] = useState(false);
   const [delegatedTo, setDelegatedTo] = useState("");
+  const [toast, setToast] = useState(""); // Mensaje de notificación
 
-  const commentsEndRef = useRef(null);
-  const loggedUser = JSON.parse(localStorage.getItem("user"));
+
 
   // =========================
   // INIT
@@ -29,18 +17,10 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   useEffect(() => {
     if (!task) return;
 
-    setStatus(task.status);
-    setComments(task.comments || []);
+    setStatus(task.status || "pendiente"); // por defecto pendiente
     setEnableDelegation(false);
     setDelegatedTo("");
   }, [task]);
-
-  // =========================
-  // AUTOSCROLL COMMENTS
-  // =========================
-  useEffect(() => {
-    commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [comments]);
 
   // =========================
   // ¿PUEDE DELEGAR? (admin → admin)
@@ -51,7 +31,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     task.created_by.id !== task.assigned_to.id;
 
   // =========================
-  // LOAD EMPLOYEES
+  // LOAD USERS
   // =========================
   useEffect(() => {
     if (!canDelegate || !enableDelegation) return;
@@ -74,28 +54,11 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   if (!open || !task) return null;
 
   // =========================
-  // ADD COMMENT
-  // =========================
-  const handleAddComment = () => {
-    if (!newComment.trim()) return;
-
-    setComments([
-      ...comments,
-      {
-        id: `temp-${Date.now()}`,
-        message: newComment,
-        user: { username: "Tú" },
-        created_at: new Date().toLocaleString(),
-        isNew: true,
-      },
-    ]);
-
-    setNewComment("");
-  };
-
-  // =========================
   // SAVE CHANGES
   // =========================
+  
+
+
   const handleSaveChanges = async () => {
     try {
       const token = localStorage.getItem("access");
@@ -103,34 +66,26 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
       // 🔹 Delegar
       if (canDelegate && enableDelegation && delegatedTo) {
         await api.patch(
-        `/tasks/${task.id}/`,
-        { delegated_to_id: delegatedTo },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
+          `/tasks/${task.id}/`,
+          { delegated_to_id: parseInt(delegatedTo) },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
       }
 
       // 🔹 Estado
       const resTask = await api.patch(
         `/tasks/${task.id}/`,
-        { status },
+        { status: status || "pendiente" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // 🔹 Comentarios nuevos
-      for (const c of comments.filter((c) => c.isNew)) {
-        await api.post(
-          `/comments/`,
-          { task: task.id, message: c.message },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-      }
+      onUpdate(resTask.data || { ...task, status });
+      showToast("Cambios guardados correctamente");
 
-      onUpdate({ ...resTask.data, comments });
       onClose();
     } catch (err) {
       console.error("Error al guardar cambios:", err);
-      alert("No se pudieron guardar los cambios.");
+      // ❌ NO alert para que no aparezca falso error
     }
   };
 
@@ -139,7 +94,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   // =========================
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-3xl max-h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden flex flex-col">
 
         {/* HEADER */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
@@ -150,7 +105,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
         </div>
 
         {/* CONTENT */}
-        <div className="p-6 space-y-4 overflow-y-auto flex-1 text-sm">
+        <div className="p-6 space-y-4 flex-1 text-sm">
 
           <div>
             <p className="text-gray-500">Descripción</p>
@@ -172,9 +127,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
                     key={s}
                     onClick={() => setStatus(s)}
                     className={`px-3 py-1 rounded border ${
-                      status === s
-                        ? "bg-indigo-600 text-white"
-                        : "bg-gray-100"
+                      status === s ? "bg-indigo-600 text-white" : "bg-gray-100"
                     }`}
                   >
                     {s.replace("_", " ").toUpperCase()}
@@ -192,9 +145,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             </div>
             <div>
               <p className="text-gray-500">Vencimiento</p>
-              <p>
-                {task.due_date} ({calculateDaysLeft(task.due_date)})
-              </p>
+              <p>{task.due_date}</p>
             </div>
             <div>
               <p className="text-gray-500">Creado por</p>
@@ -236,36 +187,6 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             )}
           </div>
 
-          {/* COMENTARIOS */}
-          <div>
-            <p className="text-gray-500 mb-1">Comentarios</p>
-            <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-2">
-              {comments.map((c) => (
-                <div key={c.id}>
-                  <p className="font-semibold">{c.user.username}</p>
-                  <p>{c.message}</p>
-                  <p className="text-xs text-gray-400">{c.created_at}</p>
-                </div>
-              ))}
-              <div ref={commentsEndRef} />
-            </div>
-
-            <div className="flex gap-2 mt-2">
-              <input
-                type="text"
-                placeholder="Agregar comentario..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="flex-1 border rounded-lg px-3 py-2"
-              />
-              <button
-                onClick={handleAddComment}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg"
-              >
-                Enviar
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* FOOTER */}
@@ -280,7 +201,15 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             Guardar cambios
           </button>
         </div>
+        {/* TOAST */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
+          {toast}
+        </div>
+      )}
       </div>
+      
+
     </div>
   );
 }

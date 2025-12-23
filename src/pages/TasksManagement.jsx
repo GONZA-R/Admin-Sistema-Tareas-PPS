@@ -15,6 +15,15 @@ export default function TasksManagement() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
+  // ----------------------------
+  // TOAST GLOBAL
+  // ----------------------------
+  const [toast, setToast] = useState("");
+  const showToast = (message, duration = 2500) => {
+    setToast(message);
+    setTimeout(() => setToast(""), duration);
+  };
+
   // =========================
   // TRAER TAREAS
   // =========================
@@ -54,6 +63,7 @@ export default function TasksManagement() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setTasks((prev) => [...prev, res.data]);
+      showToast("Tarea creada correctamente");
     } catch (err) {
       console.error("Error al crear tarea:", err.response?.data || err);
       alert(JSON.stringify(err.response?.data, null, 2));
@@ -67,6 +77,7 @@ export default function TasksManagement() {
     try {
       await api.delete(`/tasks/${taskToDelete}/`);
       setTasks((prev) => prev.filter((t) => t.id !== taskToDelete));
+      showToast("Tarea eliminada correctamente");
     } catch (err) {
       console.error("Error al eliminar tarea:", err);
     }
@@ -221,6 +232,14 @@ export default function TasksManagement() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         task={selectedTask}
+        onUpdate={(updatedTask) => {
+          setTasks((prev) =>
+            prev.map((t) => (t.id === updatedTask.id ? updatedTask : t))
+          );
+          setDetailOpen(false); // Cierra el modal después de actualizar
+          showToast("Cambios guardados correctamente"); // Mensaje tipo flash
+        }}
+        showToast={showToast} // Función pasada al modal
       />
 
       {/* CONFIRM */}
@@ -230,6 +249,30 @@ export default function TasksManagement() {
         onConfirm={deleteTask}
         message="¿Seguro que deseas eliminar esta tarea?"
       />
+
+      {/* TOAST GLOBAL */}
+      {/* TOAST GLOBAL */}
+{toast && (
+  <div className="fixed top-4 right-4 z-50">
+    <div className="flex items-center gap-2 bg-green-500/90 text-white px-4 py-3 rounded-xl shadow-lg backdrop-blur-sm animate-toastFade">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="h-5 w-5"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          fillRule="evenodd"
+          d="M16.707 5.293a1 1 0 00-1.414 0L9 11.586 6.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l7-7a1 1 0 000-1.414z"
+          clipRule="evenodd"
+        />
+      </svg>
+      <span>{toast}</span>
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 }
