@@ -1,4 +1,3 @@
-// src/pages/TasksManagement.jsx
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
 import NewTaskModal from "../components/NewTaskModal";
@@ -13,7 +12,6 @@ export default function TasksManagement() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
-  // Nuevo modal de detalle
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
@@ -72,11 +70,13 @@ export default function TasksManagement() {
     } catch (err) {
       console.error("Error al eliminar tarea:", err);
     }
-
     setConfirmOpen(false);
     setTaskToDelete(null);
   };
 
+  /* =========================
+     PRIORIDAD
+  ========================= */
   const priorityColor = (priority) => {
     switch (priority) {
       case "alta":
@@ -90,21 +90,46 @@ export default function TasksManagement() {
     }
   };
 
+  /* =========================
+     TRUNCAR DESCRIPCIÓN
+  ========================= */
+  const truncateWords = (text, numWords) => {
+    if (!text) return "";
+    const words = text.split(" ");
+    if (words.length <= numWords) return text;
+    return words.slice(0, numWords).join(" ") + "...";
+  };
+
   return (
     <div>
-      {/* CABECERA */}
-      <div className="flex items-center justify-between mb-6 sticky top-0 bg-gray-100 z-10 p-4 rounded-xl shadow">
+      {/* CABECERA PRINCIPAL */}
+      <div className="flex items-center justify-between mb-4 sticky top-0 bg-gray-100 z-20 p-4 rounded-xl shadow">
         <h1 className="text-2xl font-bold">Gestión de Tareas</h1>
         <button
           onClick={() => setOpenModal(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
         >
           Nueva Tarea
         </button>
       </div>
 
+      {/* CABECERA TABLA */}
+      <div
+        className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
+                   bg-gray-200 text-gray-700 text-sm font-semibold
+                   px-3 py-2 rounded-lg sticky top-[88px] z-10"
+      >
+        <div>Título</div>
+        <div>Prioridad</div>
+        <div>Inicio</div>
+        <div>Vencimiento</div>
+        <div>Estado</div>
+        <div>Asignado</div>
+        <div className="text-right">Acciones</div>
+      </div>
+
       {/* LISTADO */}
-      <div className="space-y-3 pb-8">
+      <div className="space-y-2 pb-8 mt-2">
         {tasks.length === 0 && (
           <p className="text-center text-gray-500">No hay tareas cargadas.</p>
         )}
@@ -112,18 +137,24 @@ export default function TasksManagement() {
         {tasks.map((task) => (
           <div
             key={task.id}
+            className="bg-white shadow-sm rounded-lg px-3 py-2
+                       grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
+                       items-start hover:shadow-md transition cursor-pointer"
             onClick={() => {
               setSelectedTask(task);
               setDetailOpen(true);
             }}
-            className="bg-white shadow rounded-lg p-3 grid grid-cols-[2fr_1fr_1fr_1fr_1fr_0.7fr] items-center gap-2 cursor-pointer hover:bg-gray-50 transition"
           >
-            <div>
-              <h2 className="font-semibold">{task.title}</h2>
-              <p className="text-gray-500 text-sm">{task.description}</p>
+            {/* TÍTULO + DESCRIPCIÓN */}
+            <div className="flex flex-col">
+              <h2 className="font-semibold truncate">{task.title}</h2>
+              <p className="text-gray-500 text-sm mt-1">
+                {truncateWords(task.description, 8)}
+              </p>
             </div>
 
-            <div>
+            {/* PRIORIDAD */}
+            <div className="mt-1">
               <span
                 className={`px-2 py-1 rounded-full text-xs ${priorityColor(
                   task.priority
@@ -133,20 +164,27 @@ export default function TasksManagement() {
               </span>
             </div>
 
-            <div className="text-sm text-gray-500">{task.start_date}</div>
+            {/* FECHA INICIO */}
+            <div className="text-sm text-gray-500 mt-1">{task.start_date}</div>
 
-            <div className="text-sm capitalize">{task.status}</div>
+            {/* FECHA VENCIMIENTO */}
+            <div className="text-sm text-gray-500 mt-1">{task.due_date}</div>
 
-            <div className="text-sm">
+            {/* ESTADO */}
+            <div className="text-sm capitalize mt-1">{task.status}</div>
+
+            {/* ASIGNADO */}
+            <div className="text-sm mt-1">
               {task.assigned_to ? task.assigned_to.username : "-"}
             </div>
 
-            <div className="flex justify-end gap-2">
+            {/* ACCIONES */}
+            <div className="flex justify-end gap-2 mt-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   console.log("Editar tarea", task);
-                  // abrir modal de edición en el futuro
+                  // abrir modal de edición
                 }}
                 className="px-3 py-1 bg-sky-500 text-white text-xs rounded hover:bg-sky-600 transition"
               >

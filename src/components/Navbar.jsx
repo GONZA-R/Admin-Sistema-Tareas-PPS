@@ -20,9 +20,6 @@ export default function Navbar({ setIsAuthenticated }) {
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
 
-  /* ===============================
-      Logout
-  =============================== */
   const handleLogout = () => {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
@@ -30,9 +27,7 @@ export default function Navbar({ setIsAuthenticated }) {
     navigate("/login");
   };
 
-  /* ===============================
-      Traer notificaciones
-  =============================== */
+  // Traer notificaciones
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem("access");
@@ -47,7 +42,11 @@ export default function Navbar({ setIsAuthenticated }) {
         }
       );
 
-      setNotifications(res.data);
+      // Ordenar de más recientes a más antiguas
+      const sorted = res.data.sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      );
+      setNotifications(sorted);
     } catch (err) {
       console.error("Error al traer notificaciones", err);
     } finally {
@@ -55,9 +54,7 @@ export default function Navbar({ setIsAuthenticated }) {
     }
   };
 
-  /* ===============================
-      Marcar como leída
-  =============================== */
+  // Marcar como leída
   const markAsRead = async (id) => {
     try {
       const token = localStorage.getItem("access");
@@ -81,44 +78,30 @@ export default function Navbar({ setIsAuthenticated }) {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  /* ===============================
-      Cargar notificaciones al montar
-  =============================== */
+  // Cargar notificaciones al montar
   useEffect(() => {
     const token = localStorage.getItem("access");
     if (!token) return;
     fetchNotifications();
   }, []);
 
-  /* ===============================
-      Cerrar dropdowns al click afuera
-  =============================== */
+  // Cerrar dropdowns al click afuera
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (
-        notifRef.current &&
-        !notifRef.current.contains(e.target)
-      ) {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
         setNotificationsOpen(false);
       }
-
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(e.target)
-      ) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
         setMenuOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   return (
     <>
-      <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200 p-3 px-6 flex items-center justify-between relative z-30">
-
+      <nav className="bg-white/80 backdrop-blur-md shadow-md border-b border-gray-200 p-3 px-6 flex items-center justify-between relative z-30">
         {/* LEFT */}
         <div className="flex items-center gap-8">
           <Link to="/" className="text-xl font-semibold tracking-tight">
@@ -134,7 +117,6 @@ export default function Navbar({ setIsAuthenticated }) {
 
         {/* RIGHT */}
         <div className="flex items-center gap-4">
-
           {/* SEARCH */}
           <div className="relative hidden md:flex items-center">
             <Search className="absolute left-2 top-2.5 w-4 h-4 text-gray-400" />
@@ -151,7 +133,7 @@ export default function Navbar({ setIsAuthenticated }) {
               className="relative p-2 hover:bg-gray-100 rounded-full"
               onClick={() => {
                 setNotificationsOpen((v) => !v);
-                fetchNotifications();
+                fetchNotifications(); // recarga cada vez que se abre
               }}
             >
               <Bell className="w-6 h-6 text-gray-700" />
@@ -168,23 +150,21 @@ export default function Navbar({ setIsAuthenticated }) {
                   Notificaciones
                 </div>
 
-                <div className="max-h-80 overflow-y-auto">
+                <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                   {loadingNotifications ? (
                     <p className="p-4 text-sm text-gray-500">Cargando...</p>
                   ) : notifications.length === 0 ? (
-                    <p className="p-4 text-sm text-gray-500">
-                      No hay notificaciones
-                    </p>
+                    <p className="p-4 text-sm text-gray-500">No hay notificaciones</p>
                   ) : (
                     notifications.map((n) => (
                       <div
                         key={n.id}
                         onClick={() => markAsRead(n.id)}
-                        className={`px-4 py-3 text-sm cursor-pointer border-b last:border-b-0
-                          ${n.is_read ? "bg-white" : "bg-indigo-50 hover:bg-indigo-100"}
+                        className={`px-4 py-3 text-sm cursor-pointer border-b last:border-b-0 rounded-lg transition 
+                          ${n.is_read ? "bg-white hover:bg-gray-50" : "bg-indigo-50 hover:bg-indigo-100"}
                         `}
                       >
-                        <p className="text-gray-800">{n.message}</p>
+                        <p className="text-gray-800 font-medium">{n.message}</p>
                         <span className="text-xs text-gray-500">
                           {new Date(n.created_at).toLocaleString("es-AR")}
                         </span>
@@ -195,7 +175,7 @@ export default function Navbar({ setIsAuthenticated }) {
 
                 <button
                   onClick={() => setNotificationsOpen(false)}
-                  className="w-full text-sm py-2 hover:bg-gray-50"
+                  className="w-full text-sm py-2 hover:bg-gray-50 rounded-b-xl border-t"
                 >
                   Cerrar
                 </button>
@@ -276,6 +256,18 @@ export default function Navbar({ setIsAuthenticated }) {
         }
         .dropdown-item:hover {
           background: #f3f4f6;
+        }
+        /* Scrollbar moderno */
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: #f3f4f6;
+          border-radius: 999px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background-color: #cbd5e1;
+          border-radius: 999px;
         }
       `}</style>
     </>
