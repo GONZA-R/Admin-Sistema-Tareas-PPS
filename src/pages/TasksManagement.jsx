@@ -15,9 +15,9 @@ export default function TasksManagement() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
-  /* =========================
-     TRAER TAREAS
-  ========================= */
+  // =========================
+  // TRAER TAREAS
+  // =========================
   const fetchTasks = async () => {
     try {
       const res = await api.get("/tasks/");
@@ -27,9 +27,9 @@ export default function TasksManagement() {
     }
   };
 
-  /* =========================
-     TRAER USUARIOS
-  ========================= */
+  // =========================
+  // TRAER USUARIOS
+  // =========================
   const fetchUsers = async () => {
     try {
       const res = await api.get("/users/");
@@ -44,9 +44,9 @@ export default function TasksManagement() {
     fetchUsers();
   }, []);
 
-  /* =========================
-     CREAR TAREA
-  ========================= */
+  // =========================
+  // CREAR TAREA
+  // =========================
   const addTask = async (taskData) => {
     try {
       const token = localStorage.getItem("access");
@@ -60,9 +60,9 @@ export default function TasksManagement() {
     }
   };
 
-  /* =========================
-     ELIMINAR TAREA
-  ========================= */
+  // =========================
+  // ELIMINAR TAREA
+  // =========================
   const deleteTask = async () => {
     try {
       await api.delete(`/tasks/${taskToDelete}/`);
@@ -74,9 +74,9 @@ export default function TasksManagement() {
     setTaskToDelete(null);
   };
 
-  /* =========================
-     PRIORIDAD
-  ========================= */
+  // =========================
+  // PRIORIDAD
+  // =========================
   const priorityColor = (priority) => {
     switch (priority) {
       case "alta":
@@ -90,9 +90,9 @@ export default function TasksManagement() {
     }
   };
 
-  /* =========================
-     TRUNCAR DESCRIPCIÓN
-  ========================= */
+  // =========================
+  // TRUNCAR DESCRIPCIÓN
+  // =========================
   const truncateWords = (text, numWords) => {
     if (!text) return "";
     const words = text.split(" ");
@@ -180,17 +180,19 @@ export default function TasksManagement() {
 
             {/* ACCIONES */}
             <div className="flex justify-end gap-2 mt-1">
+              {/* BOTÓN EDITAR VISIBLE */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.log("Editar tarea", task);
-                  // abrir modal de edición
+                  setSelectedTask(task);
+                  setDetailOpen(true);
                 }}
                 className="px-3 py-1 bg-sky-500 text-white text-xs rounded hover:bg-sky-600 transition"
               >
                 Editar
               </button>
 
+              {/* BOTÓN ELIMINAR */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();

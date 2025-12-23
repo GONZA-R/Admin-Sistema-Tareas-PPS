@@ -21,7 +21,6 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   const [delegatedTo, setDelegatedTo] = useState("");
 
   const commentsEndRef = useRef(null);
-
   const loggedUser = JSON.parse(localStorage.getItem("user"));
 
   // =========================
@@ -44,13 +43,12 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   }, [comments]);
 
   // =========================
-  // ¿PUEDE DELEGAR?
+  // ¿PUEDE DELEGAR? (admin → admin)
   // =========================
   const canDelegate =
-    loggedUser?.is_staff &&
-    task?.assigned_to?.id === loggedUser.id &&        // me asignaron la tarea
-    task?.created_by?.id !== loggedUser.id &&         // no la creé yo
-    task?.created_by?.is_staff === true;              // viene de otro admin
+    task?.created_by?.role === "admin" &&
+    task?.assigned_to?.role === "admin" &&
+    task.created_by.id !== task.assigned_to.id;
 
   // =========================
   // LOAD EMPLOYEES
@@ -61,7 +59,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem("access");
-        const res = await api.get("/users/under-my-charge/", {
+        const res = await api.get("/users/", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUsers(res.data);
@@ -96,7 +94,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   };
 
   // =========================
-  // SAVE
+  // SAVE CHANGES
   // =========================
   const handleSaveChanges = async () => {
     try {
@@ -104,11 +102,12 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
 
       // 🔹 Delegar
       if (canDelegate && enableDelegation && delegatedTo) {
-        await api.post(
-          `/tasks/${task.id}/delegate/`,
-          { delegated_to_id: delegatedTo },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await api.patch(
+        `/tasks/${task.id}/`,
+        { delegated_to_id: delegatedTo },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
       }
 
       // 🔹 Estado
@@ -203,47 +202,39 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             </div>
           </div>
 
-          {/* ASIGNADO */}
+          {/* ASIGNADO Y OPCIÓN DE DELEGAR */}
           <div>
             <p className="text-gray-500">Asignado a</p>
             <p>{task.assigned_to?.username || "Sin asignar"}</p>
+
+            {canDelegate && (
+              <div className="mt-2 border p-2 rounded bg-gray-50">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={enableDelegation}
+                    onChange={(e) => setEnableDelegation(e.target.checked)}
+                  />
+                  Delegar esta tarea a un empleado
+                </label>
+
+                {enableDelegation && (
+                  <select
+                    value={delegatedTo}
+                    onChange={(e) => setDelegatedTo(e.target.value)}
+                    className="mt-1 w-full border rounded px-2 py-1"
+                  >
+                    <option value="">Seleccionar empleado</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.username}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
           </div>
-
-          {/* DELEGADA POR (solo empleado) */}
-          {!loggedUser?.is_staff && task.delegated_by && (
-            <div className="text-sm text-gray-600">
-              <b>Delegada por:</b> {task.delegated_by.username}
-            </div>
-          )}
-
-          {/* 🔹 DELEGACIÓN */}
-          {canDelegate && (
-            <div className="border rounded-lg p-3 space-y-2 bg-gray-50">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={enableDelegation}
-                  onChange={(e) => setEnableDelegation(e.target.checked)}
-                />
-                <span>Delegar esta tarea a un empleado</span>
-              </label>
-
-              {enableDelegation && (
-                <select
-                  value={delegatedTo}
-                  onChange={(e) => setDelegatedTo(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2"
-                >
-                  <option value="">Seleccionar empleado</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.username}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
 
           {/* COMENTARIOS */}
           <div>
