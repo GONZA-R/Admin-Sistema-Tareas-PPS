@@ -48,8 +48,8 @@ const TaskList = () => {
           description: t.description,
           dueDate: t.due_date,
           startDate: t.start_date,
-          createdBy: t.created_by?.username || "N/A",  // ⚡ Aquí usamos created_by
-          files: t.attachments || [],
+          createdBy: t.created_by?.username || "N/A",
+          attachments: t.attachments || [],   // ⚡ aquí está el cambio
           comments: t.comments || [],
         }));
 
@@ -160,6 +160,12 @@ const TaskList = () => {
               {task.comments && task.comments.length > 0 && (
                 <div className="mt-2 text-sm text-gray-500">
                   Comentarios: {task.comments.length}
+                </div>
+              )}
+
+              {task.attachments && task.attachments.length > 0 && (
+                <div className="mt-2 text-sm text-gray-500">
+                  Archivos: {task.attachments.length}
                 </div>
               )}
             </div>

@@ -5,7 +5,7 @@ export default function AllTasksCard({ tasks }) {
   const [selectedTask, setSelectedTask] = useState(null);
 
   const sample = tasks || [
-    { id: 1, title: "Configurar router", assignee: "Juan", due_in: "2 días", due_date: "2025-02-01T18:00:00", priority: "Alta", comments: [] },
+    { id: 1, title: "Configurar router 2", assignee: "Juan", due_in: "2 días", due_date: "2025-02-01T18:00:00", priority: "Alta", comments: [] },
     { id: 2, title: "Actualizar servidor", assignee: "Laura", due_in: "5 días", due_date: "2025-02-03T12:00:00", priority: "Media", comments: [] },
     { id: 3, title: "Revisar backup", assignee: "Marta", due_in: "3 días", due_date: "2025-02-02T12:00:00", priority: "Media", comments: [] },
   ];

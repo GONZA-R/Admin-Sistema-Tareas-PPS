@@ -35,6 +35,10 @@ export default function Login({ setIsAuthenticated, setRole }) {
       localStorage.setItem("role", userRole);
       setRole(userRole);
 
+      // Guardar username y email
+      localStorage.setItem("username", response.data.username);
+      localStorage.setItem("email", response.data.email);
+
       // Marcar usuario logueado
       setIsAuthenticated(true);
 

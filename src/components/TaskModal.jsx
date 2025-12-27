@@ -20,23 +20,58 @@ const formatDate = (d) => {
 };
 
 const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
-  const [newStatus, setNewStatus] = useState(task?.status || "");
+  const [newStatus, setNewStatus] = useState("");
   const [newComment, setNewComment] = useState("");
-  const [comments, setComments] = useState(task?.comments || []);
+  const [comments, setComments] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [toast, setToast] = useState(null);
   const commentsEndRef = useRef(null);
-  const [files, setFiles] = useState(task?.files || []);
 
   useEffect(() => {
-    setNewStatus(task?.status || "");
-    setComments(task?.comments || []);
-    setFiles(task?.files || []);
-  }, [task]);
+    if (!task?.id) return;
+
+    const fetchTaskDetails = async () => {
+      try {
+        const token = localStorage.getItem("access");
+        if (!token) throw new Error("No se encontró token, por favor logueate");
+
+        const response = await axios.get(
+          `http://127.0.0.1:8000/api/tasks/${task.id}/`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const fullTask = response.data;
+
+        setComments(fullTask.comments || []);
+        setAttachments(fullTask.attachments || []);
+
+        if (!loaded) {
+          setNewStatus(fullTask.status);
+          setLoaded(true);
+        }
+      } catch (err) {
+        console.error("Error al obtener detalles de la tarea:", err);
+      }
+    };
+
+    fetchTaskDetails();
+  }, [task?.id, loaded]);
 
   useEffect(() => {
     commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [comments]);
 
+  useEffect(() => {
+    if (!isOpen) setLoaded(false);
+  }, [isOpen]);
+
   if (!isOpen || !task) return null;
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
@@ -62,8 +97,10 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
       ]);
 
       setNewComment("");
+      showToast("Comentario agregado", "success");
     } catch (error) {
       console.error("Error al agregar comentario:", error);
+      showToast("Error al agregar comentario", "error");
     }
   };
 
@@ -82,19 +119,31 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
         ...task,
         status: response.data.status,
         comments,
-        files,
+        attachments,
       };
 
       onUpdate(updatedTask);
+      showToast("Estado actualizado correctamente", "success");
     } catch (error) {
       console.error("Error al actualizar tarea:", error);
+      showToast("Error al actualizar estado", "error");
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50 px-2">
-      <div className="bg-white w-full max-w-3xl rounded-xl flex flex-col max-h-[90vh]">
-        {/* Header */}
+      <div className="bg-white w-full max-w-3xl rounded-xl flex flex-col max-h-[90vh] relative">
+        {/* Toast */}
+        {toast && (
+          <div
+            className={`absolute top-4 right-4 px-4 py-2 rounded shadow-lg text-white font-semibold ${
+              toast.type === "success" ? "bg-green-500" : "bg-red-500"
+            }`}
+          >
+            {toast.message}
+          </div>
+        )}
+
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-xl font-bold">{task.title}</h2>
           <button
@@ -105,13 +154,12 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
           </button>
         </div>
 
-        {/* Contenido scrollable */}
         <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-4">
           <p className="text-gray-600">{task.description}</p>
 
           <div className="flex flex-wrap gap-4 text-sm text-gray-700">
             <div>
-              <span className="font-semibold">Estado:</span> {task.status}
+              <span className="font-semibold">Estado:</span> {newStatus}
             </div>
             <div>
               <span className="font-semibold">Prioridad:</span>{" "}
@@ -129,32 +177,36 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
             </div>
             <div>
               <span className="font-semibold">Vence:</span>{" "}
-              {formatDate(task.dueDate)} ({calculateDaysLeft(task.dueDate)})
+              {formatDate(task.due_date)} ({calculateDaysLeft(task.due_date)})
             </div>
             <div>
-              <span className="font-semibold">Creado por:</span> {task.createdBy}
+              <span className="font-semibold">Creado por:</span>{" "}
+              {task.created_by?.username || "Desconocido"}
+            </div>
+            <div>
+              <span className="font-semibold">Asignado a:</span>{" "}
+              {task.assigned_to?.username || "Sin asignar"}
             </div>
           </div>
 
           {/* Archivos adjuntos */}
           <div className="text-sm">
             <span className="font-semibold">Archivos adjuntos:</span>
-            {files && files.length > 0 ? (
+            {attachments && attachments.length > 0 ? (
               <ul className="ml-4 list-disc text-gray-600">
-                {files.map((f, i) => (
-                  <li key={i}>
-                    {f.name ? (
-                      <a
-                        href={f.file || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {f.name}
-                      </a>
-                    ) : (
-                      f.file
-                    )}
+                {attachments.map((a) => (
+                  <li key={a.id}>
+                    <a
+                      href={a.file}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {a.file.split("/").pop()}
+                    </a>{" "}
+                    <span className="text-gray-400 text-xs">
+                      (Subido por {a.uploaded_by?.username || "Desconocido"})
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -163,7 +215,7 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
             )}
           </div>
 
-          {/* Cambiar estado */}
+          {/* Botones de estado */}
           <div className="flex gap-2">
             {["pendiente", "en_progreso", "completada"].map((s) => (
               <button
@@ -184,7 +236,7 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
             ))}
           </div>
 
-          {/* Seguimiento tipo chat */}
+          {/* Comentarios */}
           <div className="flex-1 max-h-64 overflow-y-auto border-t border-b py-2">
             {comments.map((c) => (
               <div
@@ -228,7 +280,6 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
           </div>
         </div>
 
-        {/* Guardar cambios siempre visible */}
         <div className="p-4 border-t">
           <button
             onClick={handleSaveChanges}

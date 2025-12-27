@@ -1,46 +1,48 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function UpcomingDue({ tasks, fullHeight = false }) {
   const [selectedTask, setSelectedTask] = useState(null);
-
-  // Datos de ejemplo si no llegan desde backend
-  const sample = tasks || [
-    {
-      id: 1,
-      title: "Configurar router",
-      assignee: "Juan",
-      due_in: "2 días",
-      due_date: "2025-02-01T18:00:00",
-      priority: "Alta",
-      comments: [
-        { id: 1, user: "Marta", text: "Revisé el rack.", date: "2025-01-20" },
-        { id: 2, user: "Juan", text: "Voy mañana.", date: "2025-01-22" }
-      ],
-      attachments: [
-        { id: 1, name: "instrucciones.pdf", url: "#" },
-        { id: 2, name: "configuracion.txt", url: "#" }
-      ]
-    },
-    {
-      id: 2,
-      title: "Revisar backup",
-      assignee: "Marta",
-      due_in: "3 días",
-      due_date: "2025-02-02T12:00:00",
-      priority: "Media",
-      comments: [
-        { id: 1, user: "Admin", text: "Verificar logs.", date: "2025-01-21" }
-      ],
-      attachments: []
-    }
-  ];
+  const [upcomingTasks, setUpcomingTasks] = useState([]);
 
   // Clases para prioridades
   const priorityStyle = {
     Alta: "bg-red-100 text-red-700",
     Media: "bg-yellow-100 text-yellow-700",
     Baja: "bg-green-100 text-green-700"
+  };
+
+  useEffect(() => {
+    const now = new Date();
+
+    const processed = (tasks || [])
+      .map(task => {
+        const dueDate = new Date(task.due_date);
+        const diffTime = dueDate - now;
+        const due_in_days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return {
+          ...task,
+          due_in_days,
+          due_in: `${due_in_days} ${due_in_days === 1 ? "día" : "días"}`
+        };
+      })
+      .filter(task => task.due_in_days >= 0 && task.due_in_days <= 7) // solo próximas 7 días
+      .sort((a, b) => a.due_in_days - b.due_in_days); // orden por proximidad
+
+    setUpcomingTasks(processed);
+  }, [tasks]);
+
+  if (!upcomingTasks.length) {
+    return <div className="text-gray-500 text-center py-10">No hay tareas próximas a vencer</div>;
+  }
+
+  const getAssigneeName = (task) => {
+    // Maneja diferentes formatos de backend
+    if (!task) return "Sin asignar";
+    if (typeof task.assignee === "string") return task.assignee;
+    if (task.assignee?.username) return task.assignee.username;
+    if (task.assigned_to?.username) return task.assigned_to.username;
+    return "Sin asignar";
   };
 
   return (
@@ -55,7 +57,7 @@ export default function UpcomingDue({ tasks, fullHeight = false }) {
         </h2>
 
         <ul className="space-y-3 flex-1 overflow-y-auto">
-          {sample.map((t) => (
+          {upcomingTasks.map((t) => (
             <li
               key={t.id}
               onClick={() => setSelectedTask(t)}
@@ -69,11 +71,13 @@ export default function UpcomingDue({ tasks, fullHeight = false }) {
                   >
                     {t.priority}
                   </span>
-                  <span className="text-sm text-gray-700">{t.due_in}</span>
+                  <span className={`text-sm ${t.due_in_days <= 1 ? 'text-red-500' : 'text-gray-700'}`}>
+                    {t.due_in}
+                  </span>
                 </div>
               </div>
               <p className="text-xs text-gray-600 mt-1">
-                Responsable: {t.assignee}
+                Responsable: {getAssigneeName(t)}
               </p>
             </li>
           ))}
@@ -105,7 +109,7 @@ export default function UpcomingDue({ tasks, fullHeight = false }) {
 
               {/* INFO PRINCIPAL */}
               <div className="space-y-2 mb-5">
-                <p><strong>Responsable:</strong> {selectedTask.assignee}</p>
+                <p><strong>Responsable:</strong> {getAssigneeName(selectedTask)}</p>
 
                 <p>
                   <strong>Prioridad:</strong>{" "}
@@ -124,26 +128,7 @@ export default function UpcomingDue({ tasks, fullHeight = false }) {
                 <p><strong>Vence en:</strong> {selectedTask.due_in}</p>
               </div>
 
-              {/* COMENTARIOS */}
-              <h3 className="text-lg font-semibold mb-3">Seguimiento / Comentarios</h3>
-              <div className="space-y-3 mb-5">
-                {selectedTask.comments?.length > 0 ? (
-                  selectedTask.comments.map((c) => (
-                    <div
-                      key={c.id}
-                      className="p-3 bg-gray-50 border border-gray-200 rounded-lg"
-                    >
-                      <p className="font-medium">{c.user}</p>
-                      <p className="text-sm text-gray-700 mt-1">{c.text}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(c.date).toLocaleString()}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-sm">No hay comentarios todavía.</p>
-                )}
-              </div>
+              
 
               {/* ARCHIVOS ADJUNTOS */}
               <h3 className="text-lg font-semibold mb-3">Archivos Adjuntos</h3>
