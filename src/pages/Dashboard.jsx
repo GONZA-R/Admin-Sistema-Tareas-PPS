@@ -9,85 +9,60 @@ import RecentActivity from "../components/RecentActivity";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
+  const [tasks, setTasks] = useState([]);
   const [upcoming, setUpcoming] = useState([]);
-  const [activities, setActivities] = useState([]);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const { data: tasks } = await api.get("/tasks/");
+        // =========================
+        // TRAER TAREAS DEL BACKEND
+        // =========================
+        const { data } = await api.get("/tasks/");
+        setTasks(data);
+
         const now = new Date();
 
-        const tasksWithDays = tasks.map(t => ({
+        // =========================
+        // CALCULAR DÍAS RESTANTES
+        // =========================
+        const tasksWithDays = data.map((t) => ({
           ...t,
-          due_in_days: Math.ceil((new Date(t.due_date) - now) / (1000 * 60 * 60 * 24))
+          due_in_days: Math.ceil((new Date(t.due_date) - now) / (1000 * 60 * 60 * 24)),
         }));
 
+        // =========================
+        // PRÓXIMOS VENCIMIENTOS
+        // =========================
         const upcomingTasks = tasksWithDays
-          .filter(t => t.due_in_days >= 0 && t.due_in_days <= 7)
+          .filter((t) => t.due_in_days >= 0 && t.due_in_days <= 7)
+          .map((t) => ({ ...t, priority: t.priority.charAt(0).toUpperCase() + t.priority.slice(1) }))
           .sort((a, b) => a.due_in_days - b.due_in_days);
 
         setUpcoming(upcomingTasks);
 
+        // =========================
+        // ESTADÍSTICAS GENERALES
+        // =========================
         setStats({
-          total: tasks.length,
-          completed: tasks.filter(t => t.status === "completada").length,
-          overdue: tasks.filter(t => new Date(t.due_date) < now && t.status !== "completada").length,
-          active: tasks.filter(t => new Date(t.due_date) >= now && t.status !== "completada").length,
-          upcoming: upcomingTasks.length
+          total: data.length,
+          completed: data.filter((t) => t.status === "completada").length,
+          overdue: data.filter((t) => new Date(t.due_date) < now && t.status !== "completada").length,
+          active: data.filter((t) => new Date(t.due_date) >= now && t.status !== "completada").length,
+          upcoming: upcomingTasks.length,
         });
-
-        setActivities([
-          {
-            id: 1,
-            task_id: 101,
-            type: "comment",
-            user: "Sofía",
-            task_title: "Migración ERP",
-            text: "Faltan credenciales para conectarse al servidor.",
-            created_at: new Date().toISOString(),
-            priority: "alta",
-            status: "pendiente",
-            attachments: ["credenciales.pdf"],
-            comments_count: 3
-          },
-          {
-            id: 2,
-            task_id: 102,
-            type: "update",
-            user: "Carlos",
-            task_title: "Revisión de cámaras",
-            text: "Tarea completada, cámaras funcionando correctamente.",
-            created_at: new Date().toISOString(),
-            previous_status: "en progreso",
-            status: "completada",
-            priority: "media",
-            attachments: []
-          },
-          {
-            id: 3,
-            task_id: 103,
-            type: "comment",
-            user: "Gonzalo",
-            task_title: "Migración Python",
-            text: "Faltan credenciales y librerías necesarias.",
-            created_at: new Date().toISOString(),
-            priority: "alta",
-            status: "pendiente",
-            attachments: ["requirements.txt"]
-          }
-        ]);
       } catch (err) {
         console.error("Error al cargar datos:", err);
       }
     }
+
     fetchData();
   }, []);
 
   return (
     <div className="space-y-6 min-h-screen p-6 bg-gradient-to-br from-yellow-100 via-yellow-200 to-orange-100">
 
-      {/* Tarjetas estadísticas */}
+      {/* TARJETAS ESTADÍSTICAS */}
       <DashboardCards stats={stats} />
 
       {/* GRID PRINCIPAL */}
@@ -95,26 +70,28 @@ export default function Dashboard() {
 
         {/* COLUMNA IZQUIERDA */}
         <div className="space-y-6">
-          {/* Gráfico de tareas */}
-          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300 rounded-xl shadow-md p-4 border border-gray-200">
+
+          {/* GRÁFICO DE TAREAS */}
+          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300">
             <TasksChart />
           </div>
 
-          {/* Actividad reciente */}
-          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300 rounded-xl shadow-md p-4 border border-gray-200 max-h-[400px] overflow-y-auto">
-            <RecentActivity activities={activities} />
+          {/* ACTIVIDAD RECIENTE */}
+          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300 max-h-[400px] overflow-y-auto">
+            <RecentActivity /> {/* ⚡ Ya trae los datos de la API por sí mismo */}
           </div>
         </div>
 
         {/* COLUMNA DERECHA */}
         <div className="space-y-6">
-          {/* Tareas por prioridad */}
-          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300 rounded-xl shadow-md p-4 border border-gray-200">
-            <PriorityBreakdown compact />
+
+          {/* TAREAS POR PRIORIDAD */}
+          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300">
+            <PriorityBreakdown tasks={tasks} compact />
           </div>
 
-          {/* Próximos vencimientos */}
-          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300 rounded-xl shadow-md p-4 border border-gray-200 max-h-[500px] overflow-y-auto">
+          {/* PRÓXIMOS VENCIMIENTOS */}
+          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300 max-h-[500px] overflow-y-auto">
             <UpcomingDue tasks={upcoming} fullHeight />
           </div>
         </div>

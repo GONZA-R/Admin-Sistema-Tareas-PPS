@@ -1,61 +1,65 @@
 import { X, Paperclip, Upload } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import api from "../services/api";
 
 export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   const [status, setStatus] = useState("pendiente");
+  const [attachments, setAttachments] = useState([]);
+  const [filesToUpload, setFilesToUpload] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [users, setUsers] = useState([]);
   const [enableDelegation, setEnableDelegation] = useState(false);
   const [delegatedTo, setDelegatedTo] = useState("");
   const [toast, setToast] = useState({ message: "", type: "" });
 
-
-  const [attachments, setAttachments] = useState([]);
-  const [filesToUpload, setFilesToUpload] = useState([]);
-  const [uploading, setUploading] = useState(false);
-
-  // =========================
-  // INIT
-  // =========================
   useEffect(() => {
     if (!task) return;
-
-    const fetchDetail = async () => {
+    const fetchTaskDetail = async () => {
       try {
         const token = localStorage.getItem("access");
+        const role = localStorage.getItem("role");
+
         const res = await api.get(`/tasks/${task.id}/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         setStatus(res.data.status || "pendiente");
         setAttachments(res.data.attachments || []);
-        setEnableDelegation(false);
-        setDelegatedTo("");
+        setEnableDelegation(!!res.data.delegated_to);
+        setDelegatedTo(res.data.delegated_to ? res.data.delegated_to.id : "");
+
+        if (role === "admin") {
+          const usersRes = await api.get("/users/", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setUsers(usersRes.data || []);
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Error cargando detalle:", err);
       }
     };
-
-    fetchDetail();
+    fetchTaskDetail();
   }, [task]);
 
   if (!open || !task) return null;
 
-  // =========================
-  // UPLOAD FILES
-  // =========================
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast({ message: "", type: "" }), 3500);
+  };
+
+  const role = localStorage.getItem("role");
+  const canDelegate = role === "admin" && task.assigned_to?.role === "admin";
+
   const handleUploadFiles = async () => {
     if (filesToUpload.length === 0) return;
-
     try {
       setUploading(true);
       const token = localStorage.getItem("access");
-
-      for (let file of filesToUpload) {
+      for (const file of filesToUpload) {
         const formData = new FormData();
         formData.append("task", task.id);
         formData.append("file", file);
-
         await api.post("/attachments/", formData, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -63,117 +67,90 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           },
         });
       }
-
       const res = await api.get(`/tasks/${task.id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setAttachments(res.data.attachments || []);
       setFilesToUpload([]);
       showToast("Archivos subidos correctamente");
-   } catch (err) {
-  console.error("Error subiendo archivo:", err);
-
-  if (err.response?.data?.file) {
-    showToast(err.response.data.file[0], "error");
-  } else {
-    showToast("Error al subir el archivo", "error");
-  }
-} finally {
-  setUploading(false);
-}
-
-  };
-
-  const handleDeleteAttachment = async (attachmentId) => {
-  if (!window.confirm("¿Eliminar este archivo?")) return;
-
-  try {
-    const token = localStorage.getItem("access");
-
-    await api.delete(`/attachments/${attachmentId}/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    // Actualiza la lista sin recargar todo
-    setAttachments((prev) =>
-      prev.filter((a) => a.id !== attachmentId)
-    );
-
-    showToast("Archivo eliminado");
-  } catch (err) {
-    console.error("Error eliminando archivo:", err);
-  }
-};
-
-
-  const showToast = (message, type = "success") => {
-  setToast({ message, type });
-  setTimeout(() => setToast({ message: "", type: "" }), 3500);
-};
-
-
-  // =========================
-  // SAVE
-  // =========================
-  const handleSaveChanges = async () => {
-    try {
-      const token = localStorage.getItem("access");
-
-      const resTask = await api.patch(
-        `/tasks/${task.id}/`,
-        { status },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      onUpdate(resTask.data || { ...task, status });
-      showToast("Cambios guardados correctamente");
-      onClose();
     } catch (err) {
-      console.error(err);
+      console.error("Error subiendo archivo:", err);
+      showToast("Error al subir archivo", "error");
+    } finally {
+      setUploading(false);
     }
   };
 
-  // =========================
-  // UI
-  // =========================
+  const handleDeleteAttachment = async (attachmentId) => {
+    if (!window.confirm("¿Eliminar este archivo?")) return;
+    try {
+      const token = localStorage.getItem("access");
+      await api.delete(`/attachments/${attachmentId}/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+      showToast("Archivo eliminado");
+    } catch (err) {
+      console.error("Error eliminando archivo:", err);
+      showToast("No se pudo eliminar el archivo", "error");
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      const token = localStorage.getItem("access");
+      const payload = { status };
+      if (enableDelegation && delegatedTo) payload.delegated_to_id = delegatedTo;
+
+      const res = await api.patch(`/tasks/${task.id}/`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      onUpdate(res.data);
+      showToast("Cambios guardados correctamente");
+      onClose();
+    } catch (err) {
+      console.error("Error guardando cambios:", err.response?.data || err);
+      showToast("Error al guardar cambios", "error");
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-2">
+      <div className="bg-white w-full max-w-md sm:max-w-2xl md:max-w-3xl max-h-[85vh] rounded-2xl shadow-xl flex flex-col overflow-hidden border border-orange-200">
 
         {/* HEADER */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
-          <h2 className="text-lg font-semibold">{task.title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-orange-50">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 truncate">{task.title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
             <X />
           </button>
         </div>
 
         {/* CONTENT */}
-        <div className="p-6 space-y-5 flex-1 text-sm">
+        <div className="p-3 sm:p-4 flex-1 overflow-y-auto space-y-3 text-sm">
 
-          <div>
-            <p className="text-gray-500">Descripción</p>
-            <p>{task.description}</p>
+          {/* DESCRIPTION */}
+          <div className="bg-orange-50 p-2 rounded-xl shadow-sm">
+            <p className="text-gray-500 font-medium mb-1">Descripción</p>
+            <p className="text-gray-800 font-semibold">{task.description}</p>
           </div>
 
-          {/* PRIORIDAD / ESTADO */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* PRIORITY / STATUS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <p className="text-gray-500">Prioridad</p>
+              <p className="text-gray-500 font-medium mb-1">Prioridad</p>
               <p className="capitalize">{task.priority}</p>
             </div>
-
             <div>
-              <p className="text-gray-500">Estado</p>
-              <div className="flex gap-2 mt-1">
+              <p className="text-gray-500 font-medium mb-1">Estado</p>
+              <div className="flex flex-wrap gap-1 mt-1">
                 {["pendiente", "en_progreso", "completada"].map((s) => (
                   <button
                     key={s}
                     onClick={() => setStatus(s)}
-                    className={`px-3 py-1 rounded border transition ${
+                    className={`px-2 py-1 rounded-2xl font-medium text-xs sm:text-sm transition ${
                       status === s
-                        ? "bg-indigo-600 text-white"
+                        ? "bg-orange-500 text-white shadow"
                         : "bg-gray-100 hover:bg-gray-200"
                     }`}
                   >
@@ -184,110 +161,116 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             </div>
           </div>
 
-          {/* FECHAS */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* DATES */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm">
             <div>
-              <p className="text-gray-500">Inicio</p>
-              <p>{task.start_date}</p>
+              <p className="text-gray-500 font-medium mb-1">Inicio</p>
+              <p className="text-gray-700">{task.start_date}</p>
             </div>
             <div>
-              <p className="text-gray-500">Vencimiento</p>
-              <p>{task.due_date}</p>
+              <p className="text-gray-500 font-medium mb-1">Vencimiento</p>
+              <p className="text-gray-700">{task.due_date}</p>
             </div>
             <div>
-              <p className="text-gray-500">Creado por</p>
-              <p>{task.created_by?.username}</p>
+              <p className="text-gray-500 font-medium mb-1">Asignada a</p>
+              <p className="text-gray-700">{task.assigned_to?.username || "-"}</p>
             </div>
           </div>
 
-          {/* ===== ARCHIVOS ADJUNTOS ===== */}
-          <div className="border rounded-lg p-4 bg-gray-50">
-            <div className="flex items-center gap-2 mb-2">
-              <Paperclip size={16} className="text-gray-500" />
+          {/* DELEGACIÓN */}
+          {canDelegate && (
+            <div className="border rounded-2xl p-2 bg-orange-50">
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input
+                  type="checkbox"
+                  checked={enableDelegation}
+                  onChange={(e) => setEnableDelegation(e.target.checked)}
+                  className="accent-orange-500"
+                />
+                <span className="font-medium text-orange-700">Delegar tarea</span>
+              </label>
+
+              {enableDelegation && (
+                <select
+                  value={delegatedTo}
+                  onChange={(e) => setDelegatedTo(Number(e.target.value))}
+                  className="mt-2 w-full border rounded-2xl px-2 py-1 text-sm focus:ring-1 focus:ring-orange-400 outline-none"
+                >
+                  <option value="">Seleccionar usuario</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.username}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {/* ATTACHMENTS */}
+          <div className="border rounded-2xl p-2 bg-gray-50 text-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Paperclip size={14} />
               <p className="font-medium text-gray-700">Archivos adjuntos</p>
             </div>
 
             {attachments.length > 0 ? (
-              <ul className="space-y-1 mb-3">
+              <ul className="space-y-1 mb-2 max-h-36 overflow-y-auto">
                 {attachments.map((a) => (
-  <li
-    key={a.id}
-    className="flex items-center justify-between text-sm"
-  >
-    <div className="flex items-center gap-2">
-      <Paperclip size={14} className="text-indigo-500" />
-      <a
-        href={a.file}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-indigo-600 hover:underline"
-      >
-        {a.file.split("/").pop()}
-      </a>
-    </div>
-
-    {/* BOTÓN ELIMINAR */}
-    <button
-      onClick={() => handleDeleteAttachment(a.id)}
-      className="text-red-500 hover:text-red-700"
-      title="Eliminar archivo"
-    >
-      <X size={14} />
-    </button>
-  </li>
-))}
-
+                  <li key={a.id} className="flex justify-between text-xs sm:text-sm">
+                    <a
+                      href={a.file}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 hover:underline truncate max-w-[150px] sm:max-w-[250px]"
+                    >
+                      {a.file.split("/").pop()}
+                    </a>
+                    <button onClick={() => handleDeleteAttachment(a.id)} className="text-red-500">
+                      <X size={12} />
+                    </button>
+                  </li>
+                ))}
               </ul>
             ) : (
-              <p className="text-gray-400 text-sm mb-3">
-                No hay archivos adjuntos
-              </p>
+              <p className="text-gray-400 text-xs sm:text-sm mb-2">No hay archivos adjuntos</p>
             )}
 
-            <div className="flex items-center gap-2">
+            <div className="flex gap-1 flex-wrap">
               <input
                 type="file"
                 multiple
-                className="text-sm"
                 onChange={(e) => setFilesToUpload([...e.target.files])}
+                className="text-xs text-gray-500"
               />
-
               <button
                 onClick={handleUploadFiles}
                 disabled={uploading || filesToUpload.length === 0}
-                className="flex items-center gap-1 px-3 py-1 rounded bg-indigo-600 text-white text-sm disabled:opacity-50"
+                className="px-2 py-1 bg-indigo-600 text-white rounded-2xl disabled:opacity-50"
               >
-                <Upload size={14} />
-                {uploading ? "Subiendo..." : "Subir"}
+                <Upload size={12} />
               </button>
             </div>
           </div>
-
         </div>
 
         {/* FOOTER */}
-        <div className="p-4 border-t flex gap-2">
-          <button onClick={onClose} className="flex-1 border py-2 rounded-lg">
+        <div className="p-2 sm:p-3 border-t flex flex-col sm:flex-row gap-1 sm:gap-2 text-sm">
+          <button onClick={onClose} className="flex-1 border py-2 rounded-2xl hover:bg-gray-100 transition font-medium">
             Cancelar
           </button>
-          <button
-            onClick={handleSaveChanges}
-            className="flex-1 bg-indigo-600 text-white py-2 rounded-lg"
-          >
+          <button onClick={handleSaveChanges} className="flex-1 bg-orange-500 text-white py-2 rounded-2xl hover:bg-orange-600 transition font-semibold">
             Guardar cambios
           </button>
         </div>
 
+        {/* TOAST */}
         {toast.message && (
-        <div
-          className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white transition
-            ${toast.type === "error" ? "bg-red-500" : "bg-green-500"}
-          `}
-        >
-          {toast.message}
-        </div>
-      )}
-
+          <div
+            className={`fixed bottom-4 right-4 px-4 py-2 rounded-2xl text-white shadow-md
+              ${toast.type === "error" ? "bg-red-500" : "bg-green-500"}`}
+          >
+            {toast.message}
+          </div>
+        )}
       </div>
     </div>
   );

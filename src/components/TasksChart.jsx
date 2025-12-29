@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -6,96 +6,93 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
   Legend,
+  CartesianGrid,
 } from "recharts";
+import api from "../services/api";
 
-export default function TasksChart() {
-  const [view, setView] = useState("monthly");
+export default function TasksGroupedBarChart() {
+  const [data, setData] = useState([]);
 
-  /* ===========================
-       DATOS DE EJEMPLO
-     =========================== */
+  const COLORS = {
+    alta: "#ff7f50",  // naranja suave
+    media: "#facc15", // amarillo
+    baja: "#34d399",  // verde
+  };
 
-  const monthlyData = [
-    { name: "Ene", alta: 5, media: 4, baja: 3 },
-    { name: "Feb", alta: 7, media: 6, baja: 6 },
-    { name: "Mar", alta: 4, media: 5, baja: 5 },
-    { name: "Abr", alta: 9, media: 7, baja: 6 },
-    { name: "May", alta: 6, media: 8, baja: 4 },
-    { name: "Jun", alta: 10, media: 9, baja: 6 },
-  ];
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const res = await api.get("/tasks/");
+        const monthCounts = {};
 
-  const weeklyData = [
-    { name: "Semana 1", alta: 2, media: 2, baja: 1 },
-    { name: "Semana 2", alta: 3, media: 4, baja: 2 },
-    { name: "Semana 3", alta: 5, media: 3, baja: 4 },
-    { name: "Semana 4", alta: 2, media: 4, baja: 1 },
-  ];
+        res.data.forEach((t) => {
+          const date = new Date(t.due_date);
+          const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+            .toString()
+            .padStart(2, "0")}`;
 
-  const data = view === "monthly" ? monthlyData : weeklyData;
+          if (!monthCounts[monthKey]) monthCounts[monthKey] = { alta: 0, media: 0, baja: 0 };
+          monthCounts[monthKey][t.priority] += 1;
+        });
+
+        // Filtrar solo meses con al menos una tarea
+        const filteredKeys = Object.keys(monthCounts).filter(
+          (key) => monthCounts[key].alta + monthCounts[key].media + monthCounts[key].baja > 0
+        );
+
+        const sortedData = filteredKeys
+          .sort((a, b) => new Date(a + "-01") - new Date(b + "-01"))
+          .map((key) => {
+            const [year, month] = key.split("-");
+            const monthName = new Date(year, month - 1).toLocaleString("es-ES", { month: "short" });
+            return { name: monthName, ...monthCounts[key] };
+          });
+
+        setData(sortedData);
+      } catch (err) {
+        console.error("Error al traer tareas:", err);
+      }
+    };
+
+    fetchTasks();
+  }, []);
+
+  if (!data.length) return <p className="text-gray-500 text-center">Cargando gráfico...</p>;
 
   return (
-    <div className="w-full bg-white shadow-md rounded-2xl p-6 border border-gray-100">
-
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">
-          Actividad de Tareas por Prioridad
-        </h2>
-
-        <select
-          value={view}
-          onChange={(e) => setView(e.target.value)}
-          className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5
-                     focus:outline-none focus:ring-2 focus:ring-blue-300"
-        >
-          <option value="monthly">Mensual</option>
-          <option value="weekly">Semanal</option>
-        </select>
-      </div>
-
-      {/* Gráfico */}
+    <div className="w-full bg-white shadow-lg rounded-3xl p-6 border border-gray-100">
+      <h2 className="text-lg font-semibold text-gray-800 mb-4">
+        Tareas por Prioridad y Mes
+      </h2>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} barGap={4} barCategoryGap="20%">
-            <CartesianGrid strokeDasharray="4 4" stroke="#e5e7eb" />
-
-            <XAxis
-              dataKey="name"
-              tick={{ fill: "#4b5563", fontSize: 12 }}
-            />
-
+          <BarChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 0 }} barCategoryGap="20%">
+            <CartesianGrid strokeDasharray="4 4" stroke="#f3f4f6" />
+            <XAxis dataKey="name" tick={{ fill: "#4b5563", fontSize: 13, fontWeight: 500 }} />
             <YAxis tick={{ fill: "#4b5563", fontSize: 12 }} />
-
             <Tooltip
               contentStyle={{
-                backgroundColor: "white",
+                backgroundColor: "#ffffff",
                 borderRadius: "12px",
                 border: "1px solid #e5e7eb",
                 padding: "10px",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               }}
+              formatter={(value, name) => [
+                value,
+                `Prioridad: ${name.charAt(0).toUpperCase() + name.slice(1)}`,
+              ]}
             />
-
-            <Legend />
-
-            {/* Vertical bars por prioridad */}
-            <Bar
-              dataKey="alta"
-              fill="#f97316"
-              radius={[6, 6, 0, 0]}
+            <Legend
+              wrapperStyle={{ fontSize: 13 }}
+              formatter={(value) => (
+                <span style={{ color: "#4b5563", fontWeight: 500 }}>{value.charAt(0).toUpperCase() + value.slice(1)}</span>
+              )}
             />
-            <Bar
-              dataKey="media"
-              fill="#facc15"
-              radius={[6, 6, 0, 0]}
-            />
-            <Bar
-              dataKey="baja"
-              fill="#22c55e"
-              radius={[6, 6, 0, 0]}
-            />
+            <Bar dataKey="alta" fill={COLORS.alta} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="media" fill={COLORS.media} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="baja" fill={COLORS.baja} radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
