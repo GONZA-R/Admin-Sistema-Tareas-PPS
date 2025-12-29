@@ -3,27 +3,17 @@ import { useEffect, useState } from "react";
 import api from "../services/api";
 
 export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
-  // =========================
-  // STATE
-  // =========================
   const [status, setStatus] = useState("pendiente");
-
   const [attachments, setAttachments] = useState([]);
   const [filesToUpload, setFilesToUpload] = useState([]);
   const [uploading, setUploading] = useState(false);
-
   const [users, setUsers] = useState([]);
   const [enableDelegation, setEnableDelegation] = useState(false);
   const [delegatedTo, setDelegatedTo] = useState("");
-
   const [toast, setToast] = useState({ message: "", type: "" });
 
-  // =========================
-  // LOAD TASK DETAIL
-  // =========================
   useEffect(() => {
     if (!task) return;
-
     const fetchTaskDetail = async () => {
       try {
         const token = localStorage.getItem("access");
@@ -35,12 +25,9 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
 
         setStatus(res.data.status || "pendiente");
         setAttachments(res.data.attachments || []);
-
-        // precargar delegación
         setEnableDelegation(!!res.data.delegated_to);
         setDelegatedTo(res.data.delegated_to ? res.data.delegated_to.id : "");
 
-        // cargar usuarios solo si es admin
         if (role === "admin") {
           const usersRes = await api.get("/users/", {
             headers: { Authorization: `Bearer ${token}` },
@@ -51,43 +38,28 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
         console.error("Error cargando detalle:", err);
       }
     };
-
     fetchTaskDetail();
   }, [task]);
 
   if (!open || !task) return null;
 
-  // =========================
-  // HELPERS
-  // =========================
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast({ message: "", type: "" }), 3500);
   };
 
   const role = localStorage.getItem("role");
+  const canDelegate = role === "admin" && task.assigned_to?.role === "admin";
 
-  // ✅ REGLA CORRECTA: admin → admin
-  const canDelegate =
-    role === "admin" &&
-    task.assigned_to &&
-    task.assigned_to.role === "admin";
-
-  // =========================
-  // UPLOAD FILES
-  // =========================
   const handleUploadFiles = async () => {
     if (filesToUpload.length === 0) return;
-
     try {
       setUploading(true);
       const token = localStorage.getItem("access");
-
       for (const file of filesToUpload) {
         const formData = new FormData();
         formData.append("task", task.id);
         formData.append("file", file);
-
         await api.post("/attachments/", formData, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -95,11 +67,9 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           },
         });
       }
-
       const res = await api.get(`/tasks/${task.id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setAttachments(res.data.attachments || []);
       setFilesToUpload([]);
       showToast("Archivos subidos correctamente");
@@ -111,19 +81,13 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     }
   };
 
-  // =========================
-  // DELETE ATTACHMENT
-  // =========================
   const handleDeleteAttachment = async (attachmentId) => {
     if (!window.confirm("¿Eliminar este archivo?")) return;
-
     try {
       const token = localStorage.getItem("access");
-
       await api.delete(`/attachments/${attachmentId}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
       showToast("Archivo eliminado");
     } catch (err) {
@@ -132,23 +96,15 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     }
   };
 
-  // =========================
-  // SAVE CHANGES
-  // =========================
   const handleSaveChanges = async () => {
     try {
       const token = localStorage.getItem("access");
-
       const payload = { status };
-
-      if (enableDelegation && delegatedTo) {
-        payload.delegated_to_id = delegatedTo;
-      }
+      if (enableDelegation && delegatedTo) payload.delegated_to_id = delegatedTo;
 
       const res = await api.patch(`/tasks/${task.id}/`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       onUpdate(res.data);
       showToast("Cambios guardados correctamente");
       onClose();
@@ -158,47 +114,44 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     }
   };
 
-  // =========================
-  // UI
-  // =========================
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-orange-200">
 
         {/* HEADER */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
-          <h2 className="text-lg font-semibold">{task.title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-orange-50">
+          <h2 className="text-2xl font-bold text-gray-800">{task.title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
             <X />
           </button>
         </div>
 
         {/* CONTENT */}
-        <div className="p-6 space-y-5 flex-1 text-sm overflow-y-auto">
+        <div className="p-6 space-y-6 flex-1 text-sm overflow-y-auto">
 
           {/* DESCRIPTION */}
-          <div>
-            <p className="text-gray-500">Descripción</p>
-            <p>{task.description}</p>
+          <div className="bg-orange-50 p-4 rounded-xl shadow-sm">
+            <p className="text-gray-500 font-medium mb-2">Descripción</p>
+            <p className="text-gray-800 font-semibold">{task.description}</p>
           </div>
 
           {/* PRIORITY / STATUS */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-gray-500">Prioridad</p>
+              <p className="text-gray-500 font-medium mb-1">Prioridad</p>
               <p className="capitalize">{task.priority}</p>
             </div>
 
             <div>
-              <p className="text-gray-500">Estado</p>
+              <p className="text-gray-500 font-medium mb-1">Estado</p>
               <div className="flex gap-2 mt-1">
                 {["pendiente", "en_progreso", "completada"].map((s) => (
                   <button
                     key={s}
                     onClick={() => setStatus(s)}
-                    className={`px-3 py-1 rounded border transition ${
+                    className={`px-3 py-1 rounded-2xl transition font-medium ${
                       status === s
-                        ? "bg-indigo-600 text-white"
+                        ? "bg-orange-500 text-white shadow"
                         : "bg-gray-100 hover:bg-gray-200"
                     }`}
                   >
@@ -212,22 +165,22 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           {/* DATES */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <p className="text-gray-500">Inicio</p>
-              <p>{task.start_date}</p>
+              <p className="text-gray-500 font-medium mb-1">Inicio</p>
+              <p className="text-gray-700">{task.start_date}</p>
             </div>
             <div>
-              <p className="text-gray-500">Vencimiento</p>
-              <p>{task.due_date}</p>
+              <p className="text-gray-500 font-medium mb-1">Vencimiento</p>
+              <p className="text-gray-700">{task.due_date}</p>
             </div>
             <div>
-              <p className="text-gray-500">Asignada a</p>
-              <p>{task.assigned_to?.username || "-"}</p>
+              <p className="text-gray-500 font-medium mb-1">Asignada a</p>
+              <p className="text-gray-700">{task.assigned_to?.username || "-"}</p>
             </div>
           </div>
 
           {/* DELEGACIÓN */}
           {canDelegate && (
-            <div className="border rounded-lg p-4 bg-orange-50">
+            <div className="border rounded-2xl p-4 bg-orange-50">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -235,22 +188,18 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
                   onChange={(e) => setEnableDelegation(e.target.checked)}
                   className="accent-orange-500"
                 />
-                <span className="font-medium text-orange-700">
-                  Delegar tarea
-                </span>
+                <span className="font-medium text-orange-700">Delegar tarea</span>
               </label>
 
               {enableDelegation && (
                 <select
                   value={delegatedTo}
                   onChange={(e) => setDelegatedTo(Number(e.target.value))}
-                  className="mt-3 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-400"
+                  className="mt-3 w-full border rounded-2xl px-3 py-2 focus:ring-2 focus:ring-orange-400 outline-none"
                 >
                   <option value="">Seleccionar usuario</option>
                   {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.username}
-                    </option>
+                    <option key={u.id} value={u.id}>{u.username}</option>
                   ))}
                 </select>
               )}
@@ -258,10 +207,10 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           )}
 
           {/* ATTACHMENTS */}
-          <div className="border rounded-lg p-4 bg-gray-50">
+          <div className="border rounded-2xl p-4 bg-gray-50">
             <div className="flex items-center gap-2 mb-2">
               <Paperclip size={16} />
-              <p className="font-medium">Archivos adjuntos</p>
+              <p className="font-medium text-gray-700">Archivos adjuntos</p>
             </div>
 
             {attachments.length > 0 ? (
@@ -286,9 +235,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-400 text-sm mb-3">
-                No hay archivos adjuntos
-              </p>
+              <p className="text-gray-400 text-sm mb-3">No hay archivos adjuntos</p>
             )}
 
             <div className="flex gap-2">
@@ -296,11 +243,12 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
                 type="file"
                 multiple
                 onChange={(e) => setFilesToUpload([...e.target.files])}
+                className="text-sm text-gray-500"
               />
               <button
                 onClick={handleUploadFiles}
                 disabled={uploading || filesToUpload.length === 0}
-                className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
+                className="px-3 py-1 bg-indigo-600 text-white rounded-2xl disabled:opacity-50"
               >
                 <Upload size={14} />
               </button>
@@ -310,13 +258,10 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
 
         {/* FOOTER */}
         <div className="p-4 border-t flex gap-2">
-          <button onClick={onClose} className="flex-1 border py-2 rounded-lg">
+          <button onClick={onClose} className="flex-1 border py-2 rounded-2xl hover:bg-gray-100 transition font-medium">
             Cancelar
           </button>
-          <button
-            onClick={handleSaveChanges}
-            className="flex-1 bg-indigo-600 text-white py-2 rounded-lg"
-          >
+          <button onClick={handleSaveChanges} className="flex-1 bg-orange-500 text-white py-2 rounded-2xl hover:bg-orange-600 transition font-semibold">
             Guardar cambios
           </button>
         </div>
@@ -324,9 +269,9 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
         {/* TOAST */}
         {toast.message && (
           <div
-            className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg text-white
-              ${toast.type === "error" ? "bg-red-500" : "bg-green-500"}
-            `}
+            className={`fixed bottom-4 right-4 px-4 py-2 rounded-2xl text-white shadow-md
+              ${toast.type === "error" ? "bg-red-500" : "bg-green-500"}`
+            }
           >
             {toast.message}
           </div>
