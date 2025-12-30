@@ -1,34 +1,35 @@
 import React, { useState, useEffect } from "react";
 import { X, Eye, EyeOff } from "lucide-react";
 
-export default function UserModal({ open, onClose, onSave, userToEdit }) {
+export default function UserModal({ open, onClose, onSave, userToEdit, users }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("empleado");
   const [isActive, setIsActive] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [assignedToId, setAssignedToId] = useState(null); // NUEVO
 
   useEffect(() => {
-  if (open) {
-    if (userToEdit) {
-      setUsername(userToEdit.username);
-      setEmail(userToEdit.email);
-      setRole(userToEdit.role || "empleado");
-      setIsActive(userToEdit.is_active);
-      setPassword("");
-    } else {
-      // Nuevo usuario → campos completamente vacíos
-      setUsername("");
-      setEmail("");
-      setPassword("");
-      setRole("empleado");
-      setIsActive(true);
+    if (open) {
+      if (userToEdit) {
+        setUsername(userToEdit.username);
+        setEmail(userToEdit.email);
+        setRole(userToEdit.role || "empleado");
+        setIsActive(userToEdit.is_active);
+        setPassword("");
+        setAssignedToId(userToEdit.assigned_to || null); // Cargar asignado
+      } else {
+        setUsername("");
+        setEmail("");
+        setPassword("");
+        setRole("empleado");
+        setIsActive(true);
+        setAssignedToId(null);
+      }
+      setShowPassword(false);
     }
-    setShowPassword(false);
-  }
-}, [userToEdit, open]);
-
+  }, [userToEdit, open]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -40,8 +41,16 @@ export default function UserModal({ open, onClose, onSave, userToEdit }) {
       alert("La contraseña es obligatoria al crear un usuario");
       return;
     }
-    const payload = { username, email, role, is_active: isActive };
+
+    const payload = {
+      username,
+      email,
+      role,
+      is_active: isActive,
+      assigned_to: assignedToId, // ENVIAR ID
+    };
     if (password) payload.password = password;
+
     onSave(payload);
     onClose();
   };
@@ -51,7 +60,6 @@ export default function UserModal({ open, onClose, onSave, userToEdit }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-3xl w-96 p-6 relative shadow-2xl border border-orange-200 animate-fadeIn">
-        {/* Botón cerrar */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
@@ -59,7 +67,6 @@ export default function UserModal({ open, onClose, onSave, userToEdit }) {
           <X className="w-5 h-5" />
         </button>
 
-        {/* Título con badge */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800">
             {userToEdit ? "Editar Usuario" : "Nuevo Usuario"}
@@ -73,13 +80,10 @@ export default function UserModal({ open, onClose, onSave, userToEdit }) {
           </span>
         </div>
 
-        {/* Formulario */}
         <form className="space-y-4" onSubmit={handleSubmit}>
-          {/* Nombre de usuario */}
+          {/* Usuario */}
           <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-700 mb-1">
-              Nombre de usuario
-            </label>
+            <label className="text-sm font-medium text-gray-700 mb-1">Nombre de usuario</label>
             <input
               type="text"
               value={username}
@@ -99,7 +103,7 @@ export default function UserModal({ open, onClose, onSave, userToEdit }) {
             />
           </div>
 
-          {/* Contraseña con ojo */}
+          {/* Contraseña */}
           <div className="flex flex-col relative">
             <label className="text-sm font-medium text-gray-700 mb-1">
               {userToEdit ? "Nueva contraseña (opcional)" : "Contraseña"}
@@ -145,7 +149,28 @@ export default function UserModal({ open, onClose, onSave, userToEdit }) {
             </select>
           </div>
 
-          {/* Botón Guardar */}
+          {/* Asignar a Admin */}
+          {role === "empleado" && (
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-1">Asignado a</label>
+              <select
+                value={assignedToId || ""}
+                onChange={(e) =>
+                  setAssignedToId(e.target.value ? parseInt(e.target.value) : null)
+                }
+                className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none bg-white shadow-sm"
+              >
+                <option value="">Sin asignar</option>
+                {users
+                  .filter((u) => u.role.toLowerCase() === "admin")
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>{u.username}</option>
+                  ))}
+              </select>
+            </div>
+          )}
+
+          {/* Guardar */}
           <button
             type="submit"
             className="w-full bg-orange-400 text-white px-4 py-2 rounded-2xl hover:bg-orange-500 transition font-semibold shadow-md mt-2"

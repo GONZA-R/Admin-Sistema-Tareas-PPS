@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; 
 import { FiEdit, FiTrash2, FiClock, FiCalendar, FiUser } from "react-icons/fi";
 import api from "../services/api";
 import NewTaskModal from "../components/NewTaskModal";
 import ConfirmModal from "../components/ConfirmModal";
 import TaskDetailModal from "../components/TaskDetailModal";
+import EditTaskModal from "../components/EditTaskModal"; // <-- IMPORT EDIT MODAL
 
 export default function TasksManagement() {
   const [tasks, setTasks] = useState([]);
@@ -15,6 +16,8 @@ export default function TasksManagement() {
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+
+  const [editModalOpen, setEditModalOpen] = useState(false); // <-- EDIT MODAL STATE
 
   // ----------------------------
   // TOAST GLOBAL
@@ -135,17 +138,14 @@ export default function TasksManagement() {
   });
 
   const filteredTasks = tasks.filter((task) => {
-    // Filtrar por prioridad
     if (filters.priority && task.priority !== filters.priority) return false;
 
-    // Filtrar por estado
     const isOverdue = new Date(task.due_date) < new Date() && task.status !== "completada";
     if (filters.status) {
       if (filters.status === "vencida" && !isOverdue) return false;
       else if (filters.status !== "vencida" && task.status !== filters.status) return false;
     }
 
-    // Filtrar por asignado
     if (filters.assigned_to && task.assigned_to?.id.toString() !== filters.assigned_to) return false;
 
     return true;
@@ -155,11 +155,9 @@ export default function TasksManagement() {
     <div className="bg-orange-50 min-h-screen p-4">
       {/* CONTENEDOR STICKY PRINCIPAL */}
       <div className="sticky top-0 z-20 bg-orange-100 shadow-sm rounded-b-2xl backdrop-blur-sm">
-        {/* CABECERA PRINCIPAL + FILTROS */}
         <div className="flex flex-wrap items-center justify-between p-4 gap-3">
           <h1 className="text-2xl font-bold text-gray-800 flex-1">Gestión de Tareas</h1>
           <div className="flex gap-2 flex-wrap">
-            {/* FILTRO PRIORIDAD */}
             <select
               className="border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
               value={filters.priority}
@@ -170,8 +168,6 @@ export default function TasksManagement() {
               <option value="media">Media</option>
               <option value="baja">Baja</option>
             </select>
-
-            {/* FILTRO ESTADO */}
             <select
               className="border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
               value={filters.status}
@@ -183,8 +179,6 @@ export default function TasksManagement() {
               <option value="completada">Completada</option>
               <option value="vencida">Vencida</option>
             </select>
-
-            {/* FILTRO ASIGNADO */}
             <select
               className="border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
               value={filters.assigned_to}
@@ -195,7 +189,6 @@ export default function TasksManagement() {
                 <option key={u.id} value={u.id}>{u.username}</option>
               ))}
             </select>
-
             <button
               onClick={() => setOpenModal(true)}
               className="bg-orange-400 text-white px-4 py-2 rounded-lg hover:bg-orange-500 transition shadow-sm"
@@ -205,7 +198,6 @@ export default function TasksManagement() {
           </div>
         </div>
 
-        {/* CABECERA TABLA */}
         <div
           className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
                      bg-orange-100 text-gray-700 text-sm font-semibold
@@ -243,7 +235,6 @@ export default function TasksManagement() {
                 setDetailOpen(true);
               }}
             >
-              {/* TÍTULO + DESCRIPCIÓN */}
               <div className="flex flex-col">
                 <h2 className="font-semibold text-gray-800 truncate">{task.title}</h2>
                 <p className="text-gray-500 text-sm mt-1 line-clamp-2">
@@ -251,7 +242,6 @@ export default function TasksManagement() {
                 </p>
               </div>
 
-              {/* PRIORIDAD */}
               <div className="flex items-center mt-1">
                 <span
                   className={`inline-block rounded-full text-xs font-semibold ${priorityColor(task.priority)}`}
@@ -261,41 +251,35 @@ export default function TasksManagement() {
                 </span>
               </div>
 
-              {/* FECHA INICIO */}
               <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
                 <FiClock className="w-4 h-4 text-gray-400" /> {task.start_date}
               </div>
 
-              {/* FECHA VENCIMIENTO */}
               <div className={`text-sm mt-1 flex items-center gap-1 ${isOverdue ? "text-red-700 font-semibold" : "text-gray-500"}`}>
                 <FiCalendar className="w-4 h-4" /> {task.due_date}
               </div>
 
-              {/* ESTADO */}
               <div
-  className={`text-sm capitalize mt-1 font-semibold ${
-    task.status === "pendiente" ? "text-yellow-600" :
-    task.status === "en_progreso" ? "text-blue-600" :
-    task.status === "completada" ? "text-green-600" :
-    task.status === "vencida" ? "text-rose-700" : "text-gray-700"
-  }`}
->
-  {task.status}
-</div>
+                className={`text-sm capitalize mt-1 font-semibold ${
+                  task.status === "pendiente" ? "text-yellow-600" :
+                  task.status === "en_progreso" ? "text-blue-600" :
+                  task.status === "completada" ? "text-green-600" :
+                  task.status === "vencida" ? "text-rose-700" : "text-gray-700"
+                }`}
+              >
+                {task.status}
+              </div>
 
-
-              {/* ASIGNADO */}
               <div className="text-sm mt-1 flex items-center gap-1">
                 <FiUser className="w-4 h-4 text-gray-400" /> {task.assigned_to ? task.assigned_to.username : "-"}
               </div>
 
-              {/* ACCIONES */}
               <div className="flex justify-end gap-2 mt-1">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedTask(task);
-                    setDetailOpen(true);
+                    setEditModalOpen(true); // <-- ABRIR MODAL EDIT
                   }}
                   className="px-3 py-1 bg-sky-500 text-white text-xs rounded hover:bg-sky-600 transition flex items-center gap-1"
                 >
@@ -317,7 +301,7 @@ export default function TasksManagement() {
         })}
       </div>
 
-      {/* MODAL NUEVA TAREA */}
+      {/* MODALES */}
       <NewTaskModal
         open={openModal}
         onClose={() => setOpenModal(false)}
@@ -325,7 +309,6 @@ export default function TasksManagement() {
         users={users}
       />
 
-      {/* MODAL DETALLE TAREA */}
       <TaskDetailModal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
@@ -340,7 +323,17 @@ export default function TasksManagement() {
         showToast={showToast}
       />
 
-      {/* CONFIRM */}
+      <EditTaskModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        task={selectedTask}
+        onSave={() => {
+          fetchTasks();
+          setEditModalOpen(false);
+          showToast("Cambios guardados correctamente");
+        }}
+      />
+
       <ConfirmModal
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}

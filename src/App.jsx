@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import TasksManagement from "./pages/TasksManagement";
 import UsersManagement from "./pages/UsersManagement";
+import UsersOverview from "./pages/UsersOverview";
 import EmployeeTasks from "./pages/EmployeeTasks";
 import Navbar from "./components/Navbar";
 
@@ -15,6 +16,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem("access");
     const savedRole = localStorage.getItem("role");
+
     setIsAuthenticated(!!token);
     setRole(savedRole);
   }, []);
@@ -24,35 +26,56 @@ function App() {
       {isAuthenticated && <Navbar setIsAuthenticated={setIsAuthenticated} />}
 
       <Routes>
-        {/* Login */}
+        {/* LOGIN */}
         <Route
           path="/login"
           element={
             isAuthenticated ? (
               <Navigate to="/" />
             ) : (
-              <Login setIsAuthenticated={setIsAuthenticated} setRole={setRole} />
+              <Login
+                setIsAuthenticated={setIsAuthenticated}
+                setRole={setRole}
+              />
             )
           }
         />
 
-        {/* Página inicial según rol */}
+        {/* HOME SEGÚN ROL */}
         <Route
           path="/"
           element={
-            isAuthenticated ? (
-              role === "empleado" ? <Navigate to="/employee" /> : <Dashboard />
+            !isAuthenticated ? (
+              <Navigate to="/login" />
+            ) : role === "admin_general" ? (
+              <Navigate to="/users" />
+            ) : role === "admin" ? (
+              <Navigate to="/dashboard" />
+            ) : role === "empleado" ? (
+              <Navigate to="/employee" />
             ) : (
               <Navigate to="/login" />
             )
           }
         />
 
-        {/* TasksManagement (solo admin y jefe) */}
+        {/* DASHBOARD → ADMIN */}
+        <Route
+          path="/dashboard"
+          element={
+            isAuthenticated && role === "admin" ? (
+              <Dashboard />
+            ) : (
+              <Navigate to="/" />
+            )
+          }
+        />
+
+        {/* TASKS → ADMIN */}
         <Route
           path="/tasks"
           element={
-            isAuthenticated && (role === "admin" || role === "jefe") ? (
+            isAuthenticated && role === "admin" ? (
               <TasksManagement />
             ) : (
               <Navigate to="/" />
@@ -60,11 +83,11 @@ function App() {
           }
         />
 
-        {/* UsersManagement (solo admin) */}
+        {/* USERS MANAGEMENT → SOLO ADMIN_GENERAL */}
         <Route
           path="/users"
           element={
-            isAuthenticated && (role === "admin" || role === "jefe") ? (
+            isAuthenticated && role === "admin_general" ? (
               <UsersManagement />
             ) : (
               <Navigate to="/" />
@@ -72,7 +95,19 @@ function App() {
           }
         />
 
-        {/* EmployeeTasks (solo empleado) */}
+        {/* USERS OVERVIEW → SOLO ADMIN */}
+        <Route
+          path="/users-overview"
+          element={
+            isAuthenticated && role === "admin" ? (
+              <UsersOverview />
+            ) : (
+              <Navigate to="/" />
+            )
+          }
+        />
+
+        {/* EMPLEADO */}
         <Route
           path="/employee"
           element={
