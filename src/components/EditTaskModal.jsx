@@ -12,7 +12,6 @@ export default function EditTaskModal({ open, onClose, task, onSave }) {
   const [status, setStatus] = useState("pendiente");
   const [users, setUsers] = useState([]);
 
-  // Cuando se abre el modal, cargar los datos de la tarea
   useEffect(() => {
     if (open && task) {
       setTitle(task.title || "");
@@ -25,7 +24,6 @@ export default function EditTaskModal({ open, onClose, task, onSave }) {
     }
   }, [open, task]);
 
-  // Traer lista de usuarios para el select
   useEffect(() => {
     api.get("/users/").then((res) => setUsers(res.data)).catch(console.error);
   }, []);
@@ -46,7 +44,7 @@ export default function EditTaskModal({ open, onClose, task, onSave }) {
 
     try {
       await api.put(`/tasks/${task.id}/`, payload);
-      onSave(); // Notificar al padre que se guardó
+      onSave();
       onClose();
     } catch (err) {
       console.error("Error al actualizar tarea", err);
@@ -57,8 +55,8 @@ export default function EditTaskModal({ open, onClose, task, onSave }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-3xl w-96 p-6 relative shadow-2xl border border-orange-200 animate-fadeIn">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-2">
+      <div className="bg-white rounded-3xl w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl p-4 sm:p-6 relative shadow-2xl border border-orange-200 animate-fadeIn overflow-y-auto max-h-[90vh]">
         {/* Botón cerrar */}
         <button
           onClick={onClose}
@@ -67,7 +65,9 @@ export default function EditTaskModal({ open, onClose, task, onSave }) {
           <X className="w-5 h-5" />
         </button>
 
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Editar Tarea</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 text-center sm:text-left">
+          Editar Tarea
+        </h2>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           {/* Título */}
@@ -93,42 +93,56 @@ export default function EditTaskModal({ open, onClose, task, onSave }) {
             />
           </div>
 
-          {/* Fecha inicio */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-700 mb-1">Fecha de inicio</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none shadow-sm"
-              required
-            />
+          {/* Fechas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-1">Fecha de inicio</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none shadow-sm"
+                required
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-1">Fecha de vencimiento</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none shadow-sm"
+                required
+              />
+            </div>
           </div>
 
-          {/* Fecha de vencimiento */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-700 mb-1">Fecha de vencimiento</label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none shadow-sm"
-              required
-            />
-          </div>
-
-          {/* Prioridad */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-700 mb-1">Prioridad</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none shadow-sm"
-            >
-              <option value="alta">Alta</option>
-              <option value="media">Media</option>
-              <option value="baja">Baja</option>
-            </select>
+          {/* Prioridad y Estado */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-1">Prioridad</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none shadow-sm"
+              >
+                <option value="alta">Alta</option>
+                <option value="media">Media</option>
+                <option value="baja">Baja</option>
+              </select>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-1">Estado</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none shadow-sm"
+              >
+                <option value="pendiente">Pendiente</option>
+                <option value="en_progreso">En progreso</option>
+                <option value="completada">Completada</option>
+              </select>
+            </div>
           </div>
 
           {/* Asignado a */}
@@ -145,20 +159,6 @@ export default function EditTaskModal({ open, onClose, task, onSave }) {
                   {u.username}
                 </option>
               ))}
-            </select>
-          </div>
-
-          {/* Estado */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium text-gray-700 mb-1">Estado</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none shadow-sm"
-            >
-              <option value="pendiente">Pendiente</option>
-              <option value="en_progreso">En progreso</option>
-              <option value="completada">Completada</option>
             </select>
           </div>
 
