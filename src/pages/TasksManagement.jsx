@@ -63,7 +63,7 @@ export default function TasksManagement() {
       const res = await api.post("/tasks/", taskData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setTasks((prev) => [...prev, res.data]);
+      setTasks((prev) => [res.data, ...prev]);
       showToast("Tarea creada correctamente");
     } catch (err) {
       console.error("Error al crear tarea:", err.response?.data || err);
@@ -90,23 +90,30 @@ export default function TasksManagement() {
   // PRIORIDAD
   // =========================
   const priorityColor = (priority, border = false) => {
-  if (border) {
-    switch (priority) {
-      case "alta": return "border-red-500";
-      case "media": return "border-yellow-500";
-      case "baja": return "border-green-500";
-      default: return "border-gray-300";
+    if (border) {
+      switch (priority) {
+        case "alta":
+          return "border-red-500";
+        case "media":
+          return "border-yellow-500";
+        case "baja":
+          return "border-green-500";
+        default:
+          return "border-gray-300";
+      }
+    } else {
+      switch (priority) {
+        case "alta":
+          return "bg-red-100 text-red-700";
+        case "media":
+          return "bg-yellow-100 text-yellow-700";
+        case "baja":
+          return "bg-green-100 text-green-700";
+        default:
+          return "bg-gray-100 text-gray-700";
+      }
     }
-  } else {
-    switch (priority) {
-      case "alta": return "bg-red-100 text-red-700";
-      case "media": return "bg-yellow-100 text-yellow-700";
-      case "baja": return "bg-green-100 text-green-700";
-      default: return "bg-gray-100 text-gray-700";
-    }
-  }
-};
-
+  };
 
   // =========================
   // TRUNCAR DESCRIPCIÓN
@@ -118,120 +125,196 @@ export default function TasksManagement() {
     return words.slice(0, numWords).join(" ") + "...";
   };
 
+  // =========================
+  // FILTROS
+  // =========================
+  const [filters, setFilters] = useState({
+    priority: "",
+    status: "",
+    assigned_to: "",
+  });
+
+  const filteredTasks = tasks.filter((task) => {
+    // Filtrar por prioridad
+    if (filters.priority && task.priority !== filters.priority) return false;
+
+    // Filtrar por estado
+    const isOverdue = new Date(task.due_date) < new Date() && task.status !== "completada";
+    if (filters.status) {
+      if (filters.status === "vencida" && !isOverdue) return false;
+      else if (filters.status !== "vencida" && task.status !== filters.status) return false;
+    }
+
+    // Filtrar por asignado
+    if (filters.assigned_to && task.assigned_to?.id.toString() !== filters.assigned_to) return false;
+
+    return true;
+  });
+
   return (
     <div className="bg-orange-50 min-h-screen p-4">
       {/* CONTENEDOR STICKY PRINCIPAL */}
-<div className="sticky top-0 z-20 bg-orange-100 shadow-sm rounded-b-2xl backdrop-blur-sm">
-  {/* CABECERA PRINCIPAL */}
-  <div className="flex items-center justify-between p-4">
-    <h1 className="text-2xl font-bold text-gray-800">Gestión de Tareas</h1>
-    <button
-      onClick={() => setOpenModal(true)}
-      className="bg-orange-400 text-white px-4 py-2 rounded-lg hover:bg-orange-500 transition shadow-sm"
-    >
-      Nueva Tarea
-    </button>
-  </div>
+      <div className="sticky top-0 z-20 bg-orange-100 shadow-sm rounded-b-2xl backdrop-blur-sm">
+        {/* CABECERA PRINCIPAL + FILTROS */}
+        <div className="flex flex-wrap items-center justify-between p-4 gap-3">
+          <h1 className="text-2xl font-bold text-gray-800 flex-1">Gestión de Tareas</h1>
+          <div className="flex gap-2 flex-wrap">
+            {/* FILTRO PRIORIDAD */}
+            <select
+              className="border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
+              value={filters.priority}
+              onChange={(e) => setFilters((prev) => ({ ...prev, priority: e.target.value }))}
+            >
+              <option value="">Todas prioridades</option>
+              <option value="alta">Alta</option>
+              <option value="media">Media</option>
+              <option value="baja">Baja</option>
+            </select>
 
-  {/* CABECERA TABLA */}
-  <div
-    className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
-               bg-orange-100 text-gray-700 text-sm font-semibold
-               px-3 py-2 border-t border-orange-300"
-  >
-    <div>Título</div>
-    <div>Prioridad</div>
-    <div>Inicio</div>
-    <div>Vencimiento</div>
-    <div>Estado</div>
-    <div>Asignado</div>
-    <div className="text-left">Acciones</div>
-  </div>
-</div>
+            {/* FILTRO ESTADO */}
+            <select
+              className="border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
+              value={filters.status}
+              onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+            >
+              <option value="">Todos estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="en_progreso">En progreso</option>
+              <option value="completada">Completada</option>
+              <option value="vencida">Vencida</option>
+            </select>
 
+            {/* FILTRO ASIGNADO */}
+            <select
+              className="border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
+              value={filters.assigned_to}
+              onChange={(e) => setFilters((prev) => ({ ...prev, assigned_to: e.target.value }))}
+            >
+              <option value="">Todos usuarios</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.username}</option>
+              ))}
+            </select>
 
+            <button
+              onClick={() => setOpenModal(true)}
+              className="bg-orange-400 text-white px-4 py-2 rounded-lg hover:bg-orange-500 transition shadow-sm"
+            >
+              Nueva Tarea
+            </button>
+          </div>
+        </div>
 
+        {/* CABECERA TABLA */}
+        <div
+          className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
+                     bg-orange-100 text-gray-700 text-sm font-semibold
+                     px-3 py-2 border-t border-orange-300"
+        >
+          <div>Título</div>
+          <div>Prioridad</div>
+          <div>Inicio</div>
+          <div>Vencimiento</div>
+          <div>Estado</div>
+          <div>Asignado</div>
+          <div className="text-left">Acciones</div>
+        </div>
+      </div>
 
       {/* LISTADO */}
       <div className="space-y-2 pb-8 mt-2">
-        {tasks.length === 0 && (
+        {filteredTasks.length === 0 && (
           <p className="text-center text-gray-500">No hay tareas cargadas.</p>
         )}
 
-        {tasks.map((task) => (
-          <div
-          key={task.id}
-          className={`bg-white shadow-md rounded-xl px-4 py-3
-                    grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
-                    items-center hover:shadow-xl transition cursor-pointer
-                    border-l-4 ${priorityColor(task.priority, true)}`}
-          onClick={() => {
-            setSelectedTask(task);
-            setDetailOpen(true);
-          }}
-        >
+        {filteredTasks.map((task) => {
+          const isOverdue = new Date(task.due_date) < new Date() && task.status !== "completada";
 
-            {/* TÍTULO + DESCRIPCIÓN */}
-            <div className="flex flex-col">
-              <h2 className="font-semibold text-gray-800 truncate">{task.title}</h2>
-              <p className="text-gray-500 text-sm mt-1 line-clamp-2">
-                {truncateWords(task.description, 12)}
-              </p>
-            </div>
+          return (
+            <div
+              key={task.id}
+              className={`shadow-md rounded-xl px-4 py-3
+                grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
+                items-center hover:shadow-xl transition cursor-pointer
+                border-l-4 ${priorityColor(task.priority, true)} 
+                ${isOverdue ? "bg-rose-200" : "bg-white"}`}
+              onClick={() => {
+                setSelectedTask(task);
+                setDetailOpen(true);
+              }}
+            >
+              {/* TÍTULO + DESCRIPCIÓN */}
+              <div className="flex flex-col">
+                <h2 className="font-semibold text-gray-800 truncate">{task.title}</h2>
+                <p className="text-gray-500 text-sm mt-1 line-clamp-2">
+                  {truncateWords(task.description, 12)}
+                </p>
+              </div>
 
-            {/* PRIORIDAD */}
-<div className="flex items-center mt-1">
-  <span
-    className={`inline-block rounded-full text-xs font-semibold ${priorityColor(task.priority)}`}
-    style={{ padding: "2px 6px" }} // padding ajustado para que no rompa la alineación
-  >
-    {task.priority}
-  </span>
+              {/* PRIORIDAD */}
+              <div className="flex items-center mt-1">
+                <span
+                  className={`inline-block rounded-full text-xs font-semibold ${priorityColor(task.priority)}`}
+                  style={{ padding: "2px 6px" }}
+                >
+                  {task.priority}
+                </span>
+              </div>
+
+              {/* FECHA INICIO */}
+              <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                <FiClock className="w-4 h-4 text-gray-400" /> {task.start_date}
+              </div>
+
+              {/* FECHA VENCIMIENTO */}
+              <div className={`text-sm mt-1 flex items-center gap-1 ${isOverdue ? "text-red-700 font-semibold" : "text-gray-500"}`}>
+                <FiCalendar className="w-4 h-4" /> {task.due_date}
+              </div>
+
+              {/* ESTADO */}
+              <div
+  className={`text-sm capitalize mt-1 font-semibold ${
+    task.status === "pendiente" ? "text-yellow-600" :
+    task.status === "en_progreso" ? "text-blue-600" :
+    task.status === "completada" ? "text-green-600" :
+    task.status === "vencida" ? "text-rose-700" : "text-gray-700"
+  }`}
+>
+  {task.status}
 </div>
 
-            {/* FECHA INICIO */}
-            <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
-              <FiClock className="w-4 h-4 text-gray-400" /> {task.start_date}
-            </div>
 
-            {/* FECHA VENCIMIENTO */}
-            <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
-              <FiCalendar className="w-4 h-4 text-gray-400" /> {task.due_date}
-            </div>
+              {/* ASIGNADO */}
+              <div className="text-sm mt-1 flex items-center gap-1">
+                <FiUser className="w-4 h-4 text-gray-400" /> {task.assigned_to ? task.assigned_to.username : "-"}
+              </div>
 
-            {/* ESTADO */}
-            <div className="text-sm capitalize mt-1">{task.status}</div>
-
-            {/* ASIGNADO */}
-            <div className="text-sm mt-1 flex items-center gap-1">
-              <FiUser className="w-4 h-4 text-gray-400" /> {task.assigned_to ? task.assigned_to.username : "-"}
+              {/* ACCIONES */}
+              <div className="flex justify-end gap-2 mt-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedTask(task);
+                    setDetailOpen(true);
+                  }}
+                  className="px-3 py-1 bg-sky-500 text-white text-xs rounded hover:bg-sky-600 transition flex items-center gap-1"
+                >
+                  <FiEdit /> Editar
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTaskToDelete(task.id);
+                    setConfirmOpen(true);
+                  }}
+                  className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition flex items-center gap-1"
+                >
+                  <FiTrash2 /> Eliminar
+                </button>
+              </div>
             </div>
-
-            {/* ACCIONES */}
-            <div className="flex justify-end gap-2 mt-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedTask(task);
-                  setDetailOpen(true);
-                }}
-                className="px-3 py-1 bg-sky-500 text-white text-xs rounded hover:bg-sky-600 transition flex items-center gap-1"
-              >
-                <FiEdit /> Editar
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setTaskToDelete(task.id);
-                  setConfirmOpen(true);
-                }}
-                className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition flex items-center gap-1"
-              >
-                <FiTrash2 /> Eliminar
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* MODAL NUEVA TAREA */}

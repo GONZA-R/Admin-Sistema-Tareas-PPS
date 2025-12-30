@@ -115,41 +115,40 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-orange-200">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-2">
+      <div className="bg-white w-full max-w-md sm:max-w-2xl md:max-w-3xl max-h-[85vh] rounded-2xl shadow-xl flex flex-col overflow-hidden border border-orange-200">
 
         {/* HEADER */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-orange-50">
-          <h2 className="text-2xl font-bold text-gray-800">{task.title}</h2>
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-orange-50">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 truncate">{task.title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
             <X />
           </button>
         </div>
 
         {/* CONTENT */}
-        <div className="p-6 space-y-6 flex-1 text-sm overflow-y-auto">
+        <div className="p-3 sm:p-4 flex-1 overflow-y-auto space-y-3 text-sm">
 
           {/* DESCRIPTION */}
-          <div className="bg-orange-50 p-4 rounded-xl shadow-sm">
-            <p className="text-gray-500 font-medium mb-2">Descripción</p>
+          <div className="bg-orange-50 p-2 rounded-xl shadow-sm">
+            <p className="text-gray-500 font-medium mb-1">Descripción</p>
             <p className="text-gray-800 font-semibold">{task.description}</p>
           </div>
 
           {/* PRIORITY / STATUS */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <p className="text-gray-500 font-medium mb-1">Prioridad</p>
               <p className="capitalize">{task.priority}</p>
             </div>
-
             <div>
               <p className="text-gray-500 font-medium mb-1">Estado</p>
-              <div className="flex gap-2 mt-1">
+              <div className="flex flex-wrap gap-1 mt-1">
                 {["pendiente", "en_progreso", "completada"].map((s) => (
                   <button
                     key={s}
                     onClick={() => setStatus(s)}
-                    className={`px-3 py-1 rounded-2xl transition font-medium ${
+                    className={`px-2 py-1 rounded-2xl font-medium text-xs sm:text-sm transition ${
                       status === s
                         ? "bg-orange-500 text-white shadow"
                         : "bg-gray-100 hover:bg-gray-200"
@@ -163,7 +162,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           </div>
 
           {/* DATES */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm">
             <div>
               <p className="text-gray-500 font-medium mb-1">Inicio</p>
               <p className="text-gray-700">{task.start_date}</p>
@@ -180,8 +179,8 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
 
           {/* DELEGACIÓN */}
           {canDelegate && (
-            <div className="border rounded-2xl p-4 bg-orange-50">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <div className="border rounded-2xl p-2 bg-orange-50">
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
                 <input
                   type="checkbox"
                   checked={enableDelegation}
@@ -195,7 +194,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
                 <select
                   value={delegatedTo}
                   onChange={(e) => setDelegatedTo(Number(e.target.value))}
-                  className="mt-3 w-full border rounded-2xl px-3 py-2 focus:ring-2 focus:ring-orange-400 outline-none"
+                  className="mt-2 w-full border rounded-2xl px-2 py-1 text-sm focus:ring-1 focus:ring-orange-400 outline-none"
                 >
                   <option value="">Seleccionar usuario</option>
                   {users.map((u) => (
@@ -207,57 +206,54 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           )}
 
           {/* ATTACHMENTS */}
-          <div className="border rounded-2xl p-4 bg-gray-50">
-            <div className="flex items-center gap-2 mb-2">
-              <Paperclip size={16} />
+          <div className="border rounded-2xl p-2 bg-gray-50 text-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <Paperclip size={14} />
               <p className="font-medium text-gray-700">Archivos adjuntos</p>
             </div>
 
             {attachments.length > 0 ? (
-              <ul className="space-y-1 mb-3">
+              <ul className="space-y-1 mb-2 max-h-36 overflow-y-auto">
                 {attachments.map((a) => (
-                  <li key={a.id} className="flex justify-between text-sm">
+                  <li key={a.id} className="flex justify-between text-xs sm:text-sm">
                     <a
                       href={a.file}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-indigo-600 hover:underline"
+                      className="text-indigo-600 hover:underline truncate max-w-[150px] sm:max-w-[250px]"
                     >
                       {a.file.split("/").pop()}
                     </a>
-                    <button
-                      onClick={() => handleDeleteAttachment(a.id)}
-                      className="text-red-500"
-                    >
-                      <X size={14} />
+                    <button onClick={() => handleDeleteAttachment(a.id)} className="text-red-500">
+                      <X size={12} />
                     </button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-400 text-sm mb-3">No hay archivos adjuntos</p>
+              <p className="text-gray-400 text-xs sm:text-sm mb-2">No hay archivos adjuntos</p>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex gap-1 flex-wrap">
               <input
                 type="file"
                 multiple
                 onChange={(e) => setFilesToUpload([...e.target.files])}
-                className="text-sm text-gray-500"
+                className="text-xs text-gray-500"
               />
               <button
                 onClick={handleUploadFiles}
                 disabled={uploading || filesToUpload.length === 0}
-                className="px-3 py-1 bg-indigo-600 text-white rounded-2xl disabled:opacity-50"
+                className="px-2 py-1 bg-indigo-600 text-white rounded-2xl disabled:opacity-50"
               >
-                <Upload size={14} />
+                <Upload size={12} />
               </button>
             </div>
           </div>
         </div>
 
         {/* FOOTER */}
-        <div className="p-4 border-t flex gap-2">
+        <div className="p-2 sm:p-3 border-t flex flex-col sm:flex-row gap-1 sm:gap-2 text-sm">
           <button onClick={onClose} className="flex-1 border py-2 rounded-2xl hover:bg-gray-100 transition font-medium">
             Cancelar
           </button>
@@ -270,8 +266,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
         {toast.message && (
           <div
             className={`fixed bottom-4 right-4 px-4 py-2 rounded-2xl text-white shadow-md
-              ${toast.type === "error" ? "bg-red-500" : "bg-green-500"}`
-            }
+              ${toast.type === "error" ? "bg-red-500" : "bg-green-500"}`}
           >
             {toast.message}
           </div>
