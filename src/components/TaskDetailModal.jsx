@@ -1,4 +1,4 @@
-import { X, Paperclip, Upload } from "lucide-react";
+import { X, Paperclip, Upload } from "lucide-react"; 
 import { useEffect, useState } from "react";
 import api from "../services/api";
 
@@ -161,8 +161,8 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             </div>
           </div>
 
-          {/* DATES */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm">
+          {/* DATES / ASIGNADO / CREADOR */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs sm:text-sm">
             <div>
               <p className="text-gray-500 font-medium mb-1">Inicio</p>
               <p className="text-gray-700">{task.start_date}</p>
@@ -174,6 +174,10 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             <div>
               <p className="text-gray-500 font-medium mb-1">Asignada a</p>
               <p className="text-gray-700">{task.assigned_to?.username || "-"}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 font-medium mb-1">Creada por</p>
+              <p className="text-gray-700">{task.created_by?.username || "-"}</p>
             </div>
           </div>
 

@@ -4,11 +4,11 @@ import { Bell, Search, UserCircle } from "lucide-react";
 import axios from "axios";
 
 import UserProfileModal from "./UserProfileModal";
-import UserSettingsModal from "./UserSettingsModal";
 
 export default function Navbar({ setIsAuthenticated }) {
   const navigate = useNavigate();
   const role = localStorage.getItem("role");
+  const username = localStorage.getItem("username") || "Usuario";
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
@@ -24,13 +24,10 @@ export default function Navbar({ setIsAuthenticated }) {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     localStorage.removeItem("role");
+    localStorage.removeItem("username");
     setIsAuthenticated(false);
     navigate("/login");
   };
-
-  /* =======================
-     NOTIFICACIONES
-  ======================= */
 
   const fetchNotifications = async () => {
     try {
@@ -99,131 +96,116 @@ export default function Navbar({ setIsAuthenticated }) {
 
   return (
     <>
-      <nav className="bg-gradient-to-r from-yellow-200 via-yellow-100 to-orange-200 shadow-md p-3 px-6 flex items-center justify-between rounded-b-xl relative z-30">
-
+      <nav className="bg-gradient-to-r from-orange-300 via-orange-200 to-orange-100 shadow-md p-3 px-6 flex items-center justify-between rounded-b-xl relative z-30">
         {/* LOGO */}
         <Link
           to="/"
-          className="text-xl font-semibold tracking-tight text-orange-700"
+          className="text-xl font-bold tracking-tight text-orange-800"
         >
-          Admin<span className="text-yellow-600">Dash</span>
+          TASK<span className="text-orange-500">RVJ7</span>
         </Link>
 
         {/* LINKS POR ROL */}
         <div className="hidden md:flex gap-6 text-sm">
-
           {role === "admin" && (
             <>
               <Link className="nav-item" to="/">Dashboard</Link>
               <Link className="nav-item" to="/tasks">Tareas</Link>
-              <Link className="nav-item" to="/users-overview">
-                Usuarios
-              </Link>
+              <Link className="nav-item" to="/users-overview">Usuarios</Link>
             </>
           )}
 
           {role === "admin_general" && (
-            <Link className="nav-item" to="/users">
-              Gestión de usuarios
-            </Link>
+            <Link className="nav-item" to="/users">Gestión de usuarios</Link>
           )}
 
           {role === "empleado" && (
-            <Link className="nav-item" to="/employee">
-              Mis tareas
-            </Link>
+            <Link className="nav-item" to="/employee">Mis tareas</Link>
           )}
         </div>
 
         {/* RIGHT */}
         <div className="flex items-center gap-4">
-
           {/* SEARCH */}
           <div className="relative hidden md:flex items-center">
-            <Search className="absolute left-2 top-2.5 w-4 h-4 text-gray-500" />
+            <Search className="absolute left-2 top-2.5 w-4 h-4 text-orange-700" />
             <input
               type="text"
               placeholder="Buscar..."
-              className="border border-gray-300 rounded-lg pl-8 pr-3 py-1.5 text-sm bg-white/90 focus:ring-2 focus:ring-yellow-400 focus:outline-none"
+              className="border border-white/30 rounded-lg pl-8 pr-3 py-1.5 text-sm bg-white/20 text-orange-900 placeholder-orange-600 focus:ring-2 focus:ring-orange-300 focus:outline-none"
             />
           </div>
 
           {/* NOTIFICACIONES */}
-          <div className="relative" ref={notifRef}>
-            <button
-              className="relative p-2 hover:bg-yellow-300/40 rounded-full"
-              onClick={() => {
-                setNotificationsOpen((v) => !v);
-                fetchNotifications();
-              }}
-            >
-              <Bell className="w-6 h-6 text-orange-700" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full px-1.5">
-                  {unreadCount}
+{!(role === "admin_general" && window.location.pathname === "/users") && (
+  <div className="relative" ref={notifRef}>
+    <button
+      className="relative p-2 hover:bg-white/20 rounded-full"
+      onClick={() => {
+        setNotificationsOpen((v) => !v);
+        fetchNotifications();
+      }}
+    >
+      <Bell className="w-6 h-6 text-orange-800" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full px-1.5">
+          {unreadCount}
+        </span>
+      )}
+    </button>
+
+    {notificationsOpen && (
+      <div className="absolute right-0 mt-2 w-96 bg-white/95 border border-orange-200 shadow-xl rounded-xl">
+        <div className="p-3 border-b text-sm font-semibold text-orange-800">
+          Notificaciones
+        </div>
+
+        <div className="max-h-80 overflow-y-auto scrollbar-thin">
+          {loadingNotifications ? (
+            <p className="p-4 text-sm text-orange-500">Cargando...</p>
+          ) : notifications.length === 0 ? (
+            <p className="p-4 text-sm text-orange-500">No hay notificaciones</p>
+          ) : (
+            notifications.map((n) => (
+              <div
+                key={n.id}
+                onClick={() => markAsRead(n.id)}
+                className={`px-4 py-3 text-sm cursor-pointer border-b last:border-b-0 transition
+                  ${n.is_read ? "bg-white hover:bg-orange-50" : "bg-orange-100 hover:bg-orange-200"}`}
+              >
+                <p className="text-orange-800 font-medium">{n.message || "Notificación"}</p>
+                <span className="text-xs text-orange-600">
+                  {new Date(n.created_at).toLocaleString("es-AR")}
                 </span>
-              )}
-            </button>
-
-            {notificationsOpen && (
-              <div className="absolute right-0 mt-2 w-96 bg-yellow-50 border border-orange-200 shadow-xl rounded-xl">
-                <div className="p-3 border-b text-sm font-semibold text-orange-700">
-                  Notificaciones
-                </div>
-
-                <div className="max-h-80 overflow-y-auto scrollbar-thin">
-                  {loadingNotifications ? (
-                    <p className="p-4 text-sm text-orange-500">
-                      Cargando...
-                    </p>
-                  ) : notifications.length === 0 ? (
-                    <p className="p-4 text-sm text-orange-500">
-                      No hay notificaciones
-                    </p>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => markAsRead(n.id)}
-                        className={`px-4 py-3 text-sm cursor-pointer border-b last:border-b-0 transition
-                          ${
-                            n.is_read
-                              ? "bg-yellow-50 hover:bg-yellow-100"
-                              : "bg-orange-100 hover:bg-orange-200"
-                          }`}
-                      >
-                        <p className="text-orange-700 font-medium">
-                          {n.message || "Notificación"}
-                        </p>
-                        <span className="text-xs text-orange-500">
-                          {new Date(n.created_at).toLocaleString("es-AR")}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <button
-                  onClick={() => setNotificationsOpen(false)}
-                  className="w-full text-sm py-2 hover:bg-yellow-100 border-t"
-                >
-                  Cerrar
-                </button>
               </div>
-            )}
-          </div>
+            ))
+          )}
+        </div>
+
+        <button
+          onClick={() => setNotificationsOpen(false)}
+          className="w-full text-sm py-2 hover:bg-orange-50 border-t"
+        >
+          Cerrar
+        </button>
+      </div>
+    )}
+  </div>
+)}
+
 
           {/* USER MENU */}
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="p-1 hover:bg-yellow-300/40 rounded-full"
+              className="p-1 hover:bg-white/20 rounded-full flex items-center gap-2"
             >
-              <UserCircle className="w-8 h-8 text-orange-700" />
+              <UserCircle className="w-8 h-8 text-orange-800" />
+              <span className="hidden md:inline font-semibold text-orange-800">{username}</span>
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-44 bg-yellow-50 border border-orange-200 shadow-lg rounded-xl py-2">
+              <div className="absolute right-0 mt-2 w-44 bg-white/95 border border-orange-200 shadow-lg rounded-xl py-2">
                 <button
                   className="dropdown-item"
                   onClick={() => {
@@ -232,16 +214,6 @@ export default function Navbar({ setIsAuthenticated }) {
                   }}
                 >
                   Mi perfil
-                </button>
-
-                <button
-                  className="dropdown-item"
-                  onClick={() => {
-                    setModalType("settings");
-                    setMenuOpen(false);
-                  }}
-                >
-                  Ajustes
                 </button>
 
                 <button
@@ -261,18 +233,27 @@ export default function Navbar({ setIsAuthenticated }) {
         open={modalType === "profile"}
         onClose={() => setModalType(null)}
       />
-      <UserSettingsModal
-        open={modalType === "settings"}
-        onClose={() => setModalType(null)}
-      />
 
       <style>{`
         .nav-item {
-          color: #555;
-          transition: 0.2s;
+          position: relative;
+          font-weight: 600;
+          color: #7c2d12;
+          transition: all 0.3s ease;
         }
-        .nav-item:hover {
-          color: #d97706;
+        .nav-item::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          bottom: -2px;
+          width: 0%;
+          height: 2px;
+          background: #d97706;
+          transition: 0.3s;
+          border-radius: 2px;
+        }
+        .nav-item:hover::after {
+          width: 100%;
         }
         .dropdown-item {
           width: 100%;
@@ -284,7 +265,7 @@ export default function Navbar({ setIsAuthenticated }) {
           transition: 0.2s;
         }
         .dropdown-item:hover {
-          background: #fef3c7;
+          background: #ffedd5;
         }
         .scrollbar-thin::-webkit-scrollbar {
           width: 6px;

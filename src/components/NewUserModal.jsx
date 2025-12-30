@@ -29,7 +29,13 @@ export default function NewUserModal({ open, onClose, onSave }) {
       return;
     }
 
-    const payload = { username, email, role, is_active: isActive, password };
+    const payload = { 
+      username, 
+      email: email.toLowerCase(), // <-- Aquí forzamos a minúsculas
+      role, 
+      is_active: isActive, 
+      password 
+    };
     onSave(payload);
     onClose();
   };

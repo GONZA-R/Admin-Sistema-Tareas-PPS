@@ -32,19 +32,19 @@ export default function UsersOverview() {
   });
 
   return (
-    <div className="min-h-screen bg-orange-50/40 p-6">
+    <div className="min-h-screen bg-orange-50/20 p-6">
       {/* HEADER */}
-      <div className="bg-white border border-orange-200 rounded-xl p-5 mb-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-neutral-900">
+      <div className="bg-white border border-orange-200 rounded-2xl p-6 mb-6 shadow-lg">
+        <h1 className="text-2xl font-bold text-orange-800">
           Usuarios del sistema
         </h1>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-gray-500 mt-1">
           Vista general — solo lectura
         </p>
 
-        <div className="flex flex-wrap gap-3 mt-4">
+        <div className="flex flex-wrap gap-3 mt-5">
           <select
-            className="border border-orange-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-orange-200 rounded-xl px-4 py-2 text-sm bg-white shadow-sm hover:shadow-md transition"
             value={filters.role}
             onChange={(e) =>
               setFilters((p) => ({ ...p, role: e.target.value }))
@@ -59,7 +59,7 @@ export default function UsersOverview() {
           </select>
 
           <select
-            className="border border-orange-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-orange-200 rounded-xl px-4 py-2 text-sm bg-white shadow-sm hover:shadow-md transition"
             value={filters.status}
             onChange={(e) =>
               setFilters((p) => ({ ...p, status: e.target.value }))
@@ -73,8 +73,8 @@ export default function UsersOverview() {
       </div>
 
       {/* TABLA */}
-      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
-        <div className="grid grid-cols-[1.5fr_2fr_1fr_1fr] bg-orange-100/60 px-4 py-3 text-sm font-semibold text-gray-700">
+      <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-lg">
+        <div className="grid grid-cols-[1.5fr_2fr_1fr_1fr] bg-orange-200/50 px-5 py-3 text-sm font-semibold text-orange-800">
           <div>Usuario</div>
           <div>Email</div>
           <div>Rol</div>
@@ -87,19 +87,21 @@ export default function UsersOverview() {
           </p>
         )}
 
-        {filteredUsers.map((u) => (
+        {filteredUsers.map((u, index) => (
           <div
             key={u.id}
-            className="grid grid-cols-[1.5fr_2fr_1fr_1fr] px-4 py-3 border-t text-sm hover:bg-orange-50 transition"
+            className={`grid grid-cols-[1.5fr_2fr_1fr_1fr] px-5 py-3 border-t text-sm transition-all hover:bg-orange-50 ${
+              index % 2 === 0 ? "bg-white" : "bg-orange-50/30"
+            }`}
           >
             <div className="font-medium truncate">{u.username}</div>
             <div className="truncate text-gray-600">{u.email || "-"}</div>
             <div className="capitalize">{u.role}</div>
             <div>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${
                   u.is_active
-                    ? "bg-orange-100 text-orange-700"
+                    ? "bg-orange-100 text-orange-800"
                     : "bg-gray-200 text-gray-700"
                 }`}
               >
