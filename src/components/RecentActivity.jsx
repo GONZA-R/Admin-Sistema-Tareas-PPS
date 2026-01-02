@@ -1,23 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
+import api from "../services/api"; // usar la config centralizada
 
 export default function RecentActivity() {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
 
+  // ==========================
+  // Fetch actividades
+  // ==========================
   const fetchActivities = async () => {
     try {
-      const token = localStorage.getItem("access");
-      if (!token) return;
-
       setLoading(true);
-
-      const res = await axios.get("http://127.0.0.1:8000/api/notifications/", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      const res = await api.get("notifications/"); // usa api.js
       const sorted = res.data.sort(
         (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
@@ -29,17 +25,12 @@ export default function RecentActivity() {
     }
   };
 
+  // ==========================
+  // Marcar como leído
+  // ==========================
   const markAsRead = async (id) => {
     try {
-      const token = localStorage.getItem("access");
-      if (!token) return;
-
-      await axios.post(
-        `http://127.0.0.1:8000/api/notifications/${id}/mark_read/`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
+      await api.post(`notifications/${id}/mark_read/`);
       setActivities((prev) =>
         prev.map((act) => (act.id === id ? { ...act, is_read: true } : act))
       );
@@ -52,23 +43,11 @@ export default function RecentActivity() {
     fetchActivities();
   }, []);
 
-  // Renderizar título principal
-  const renderTitle = (act) => {
-    switch (act.type) {
-      case "creation":
-        return act.task?.title || "-";
-      case "delegation":
-        return act.task?.title || "-";
-      case "status_change":
-        return act.task?.title || "-";
-      case "comment":
-        return act.task?.title || "-";
-      default:
-        return act.message || "-";
-    }
-  };
+  // ==========================
+  // Funciones de renderizado
+  // ==========================
+  const renderTitle = (act) => act.task?.title || act.message || "-";
 
-  // Renderizar badge
   const renderBadge = (act) => {
     switch (act.type) {
       case "creation":
@@ -84,7 +63,6 @@ export default function RecentActivity() {
     }
   };
 
-  // Renderizar quién creó
   const renderCreator = (act) => {
     if (act.type === "creation") return act.task?.created_by?.username || "-";
     if (act.type === "delegation") return act.action?.delegated_by?.username || "-";
@@ -92,13 +70,15 @@ export default function RecentActivity() {
     return "-";
   };
 
-  // Renderizar para quién
   const renderAssigned = (act) => {
     if (act.type === "creation") return act.task?.assigned_to?.username || "-";
     if (act.type === "delegation") return act.action?.delegated_to?.username || "-";
     return "-";
   };
 
+  // ==========================
+  // Render componente
+  // ==========================
   return (
     <>
       <div className="bg-white rounded-xl shadow-md p-4 h-full border border-gray-200">
@@ -164,7 +144,9 @@ export default function RecentActivity() {
               <h2 className="text-xl font-semibold mb-3 text-gray-800">
                 {renderTitle(selectedActivity)}
               </h2>
-              <p className="text-sm text-gray-700 mb-2">{selectedActivity.text || selectedActivity.message || "-"}</p>
+              <p className="text-sm text-gray-700 mb-2">
+                {selectedActivity.text || selectedActivity.message || "-"}
+              </p>
               <p className="text-xs text-gray-500">
                 <strong>Creado por:</strong> {renderCreator(selectedActivity)}
               </p>

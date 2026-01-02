@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, Search, UserCircle } from "lucide-react";
-import axios from "axios";
+import { Bell, UserCircle } from "lucide-react";
+import api from "../services/api";
 
 import UserProfileModal from "./UserProfileModal";
 
@@ -11,6 +11,7 @@ export default function Navbar({ setIsAuthenticated }) {
   const username = localStorage.getItem("username") || "Usuario";
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -21,26 +22,15 @@ export default function Navbar({ setIsAuthenticated }) {
   const userMenuRef = useRef(null);
 
   const handleLogout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("role");
-    localStorage.removeItem("username");
+    localStorage.clear();
     setIsAuthenticated(false);
     navigate("/login");
   };
 
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem("access");
-      if (!token) return;
-
       setLoadingNotifications(true);
-
-      const res = await axios.get(
-        "http://127.0.0.1:8000/api/notifications/",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
+      const res = await api.get("notifications/");
       const sorted = res.data.sort(
         (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
@@ -54,19 +44,9 @@ export default function Navbar({ setIsAuthenticated }) {
 
   const markAsRead = async (id) => {
     try {
-      const token = localStorage.getItem("access");
-      if (!token) return;
-
-      await axios.post(
-        `http://127.0.0.1:8000/api/notifications/${id}/mark_read/`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
+      await api.post(`notifications/${id}/mark_read/`);
       setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, is_read: true } : n
-        )
+        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
       );
     } catch (err) {
       console.error("Error al marcar notificación", err);
@@ -75,10 +55,12 @@ export default function Navbar({ setIsAuthenticated }) {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
+  
   useEffect(() => {
-    const token = localStorage.getItem("access");
-    if (token) fetchNotifications();
+    fetchNotifications();
   }, []);
+
+
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -94,18 +76,30 @@ export default function Navbar({ setIsAuthenticated }) {
       document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+
+
+  useEffect(() => {
+  if (mobileMenuOpen) {
+    document.body.style.overflow = "hidden";
+  } else {
+    document.body.style.overflow = "";
+  }
+
+  return () => {
+    document.body.style.overflow = "";
+  };
+}, [mobileMenuOpen]);
+
+
   return (
     <>
       <nav className="bg-gradient-to-r from-orange-300 via-orange-200 to-orange-100 shadow-md p-3 px-6 flex items-center justify-between rounded-b-xl relative z-30">
         {/* LOGO */}
-        <Link
-          to="/"
-          className="text-xl font-bold tracking-tight text-orange-800"
-        >
+        <Link to="/" className="text-xl font-bold tracking-tight text-orange-800">
           TASK<span className="text-orange-500">RVJ7</span>
         </Link>
 
-        {/* LINKS POR ROL */}
+        {/* DESKTOP LINKS */}
         <div className="hidden md:flex gap-6 text-sm">
           {role === "admin" && (
             <>
@@ -114,11 +108,9 @@ export default function Navbar({ setIsAuthenticated }) {
               <Link className="nav-item" to="/users-overview">Usuarios</Link>
             </>
           )}
-
           {role === "admin_general" && (
             <Link className="nav-item" to="/users">Gestión de usuarios</Link>
           )}
-
           {role === "empleado" && (
             <Link className="nav-item" to="/employee">Mis tareas</Link>
           )}
@@ -126,73 +118,68 @@ export default function Navbar({ setIsAuthenticated }) {
 
         {/* RIGHT */}
         <div className="flex items-center gap-4">
-          {/* SEARCH */}
-          <div className="relative hidden md:flex items-center">
-            <Search className="absolute left-2 top-2.5 w-4 h-4 text-orange-700" />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              className="border border-white/30 rounded-lg pl-8 pr-3 py-1.5 text-sm bg-white/20 text-orange-900 placeholder-orange-600 focus:ring-2 focus:ring-orange-300 focus:outline-none"
-            />
-          </div>
-
           {/* NOTIFICACIONES */}
-{!(role === "admin_general" && window.location.pathname === "/users") && (
-  <div className="relative" ref={notifRef}>
-    <button
-      className="relative p-2 hover:bg-white/20 rounded-full"
-      onClick={() => {
-        setNotificationsOpen((v) => !v);
-        fetchNotifications();
-      }}
-    >
-      <Bell className="w-6 h-6 text-orange-800" />
-      {unreadCount > 0 && (
-        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full px-1.5">
-          {unreadCount}
-        </span>
-      )}
-    </button>
-
-    {notificationsOpen && (
-      <div className="absolute right-0 mt-2 w-96 bg-white/95 border border-orange-200 shadow-xl rounded-xl">
-        <div className="p-3 border-b text-sm font-semibold text-orange-800">
-          Notificaciones
-        </div>
-
-        <div className="max-h-80 overflow-y-auto scrollbar-thin">
-          {loadingNotifications ? (
-            <p className="p-4 text-sm text-orange-500">Cargando...</p>
-          ) : notifications.length === 0 ? (
-            <p className="p-4 text-sm text-orange-500">No hay notificaciones</p>
-          ) : (
-            notifications.map((n) => (
-              <div
-                key={n.id}
-                onClick={() => markAsRead(n.id)}
-                className={`px-4 py-3 text-sm cursor-pointer border-b last:border-b-0 transition
-                  ${n.is_read ? "bg-white hover:bg-orange-50" : "bg-orange-100 hover:bg-orange-200"}`}
+          {!(role === "admin_general" && window.location.pathname === "/users") && (
+            <div ref={notifRef}>
+              <button
+                className="relative p-2 hover:bg-white/20 rounded-full"
+                onClick={() => {
+                  setNotificationsOpen((v) => !v);
+                  fetchNotifications();
+                }}
               >
-                <p className="text-orange-800 font-medium">{n.message || "Notificación"}</p>
-                <span className="text-xs text-orange-600">
-                  {new Date(n.created_at).toLocaleString("es-AR")}
-                </span>
-              </div>
-            ))
+                <Bell className="w-6 h-6 text-orange-800" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full px-1.5">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notificationsOpen && (
+                <div
+                  className={`${
+                    window.innerWidth < 768
+                      ? "fixed top-16 right-2 w-[90vw] max-w-xs"
+                      : "absolute right-0 mt-2 w-96"
+                  } bg-white/95 border border-orange-200 shadow-xl rounded-xl z-50`}
+                >
+                  <div className="p-3 border-b text-sm font-semibold text-orange-800">
+                    Notificaciones
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto scrollbar-thin">
+                    {loadingNotifications ? (
+                      <p className="p-4 text-sm text-orange-500">Cargando...</p>
+                    ) : notifications.length === 0 ? (
+                      <p className="p-4 text-sm text-orange-500">No hay notificaciones</p>
+                    ) : (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => markAsRead(n.id)}
+                          className={`px-4 py-3 text-sm cursor-pointer border-b last:border-b-0 transition
+                            ${n.is_read ? "bg-white hover:bg-orange-50" : "bg-orange-100 hover:bg-orange-200"}`}
+                        >
+                          <p className="text-orange-800 font-medium">{n.message || "Notificación"}</p>
+                          <span className="text-xs text-orange-600">
+                            {new Date(n.created_at).toLocaleString("es-AR")}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setNotificationsOpen(false)}
+                    className="w-full text-sm py-2 hover:bg-orange-50 border-t"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              )}
+            </div>
           )}
-        </div>
-
-        <button
-          onClick={() => setNotificationsOpen(false)}
-          className="w-full text-sm py-2 hover:bg-orange-50 border-t"
-        >
-          Cerrar
-        </button>
-      </div>
-    )}
-  </div>
-)}
-
 
           {/* USER MENU */}
           <div className="relative" ref={userMenuRef}>
@@ -201,7 +188,10 @@ export default function Navbar({ setIsAuthenticated }) {
               className="p-1 hover:bg-white/20 rounded-full flex items-center gap-2"
             >
               <UserCircle className="w-8 h-8 text-orange-800" />
-              <span className="hidden md:inline font-semibold text-orange-800">{username}</span>
+              <span className="font-semibold text-orange-800 text-sm md:text-base">
+  {username}
+</span>
+
             </button>
 
             {menuOpen && (
@@ -222,6 +212,47 @@ export default function Navbar({ setIsAuthenticated }) {
                 >
                   Cerrar sesión
                 </button>
+              </div>
+            )}
+          </div>
+
+          {/* MOBILE MENU BUTTON */}
+          <div className="md:hidden relative">
+            <button
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              className="p-2 rounded-md hover:bg-white/20"
+            >
+              <svg
+                className="w-6 h-6 text-orange-800"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
+                />
+              </svg>
+            </button>
+
+           {mobileMenuOpen && (
+              <div className="fixed top-20 left-1/2 -translate-x-1/2 w-[92%] max-w-sm bg-white border border-orange-200 shadow-2xl rounded-2xl py-3 px-2 flex flex-col gap-1 z-50 animate-slideDown">
+
+                {role === "admin" && (
+                  <>
+                    <Link className="dropdown-item" to="/" onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
+                    <Link className="dropdown-item" to="/tasks" onClick={() => setMobileMenuOpen(false)}>Tareas</Link>
+                    <Link className="dropdown-item" to="/users-overview" onClick={() => setMobileMenuOpen(false)}>Usuarios</Link>
+                  </>
+                )}
+                {role === "admin_general" && (
+                  <Link className="dropdown-item" to="/users" onClick={() => setMobileMenuOpen(false)}>Gestión de usuarios</Link>
+                )}
+                {role === "empleado" && (
+                  <Link className="dropdown-item" to="/employee" onClick={() => setMobileMenuOpen(false)}>Mis tareas</Link>
+                )}
               </div>
             )}
           </div>

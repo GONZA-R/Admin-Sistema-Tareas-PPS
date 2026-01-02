@@ -4,7 +4,7 @@ import api from "../services/api";
 import NewTaskModal from "../components/NewTaskModal";
 import ConfirmModal from "../components/ConfirmModal";
 import TaskDetailModal from "../components/TaskDetailModal";
-import EditTaskModal from "../components/EditTaskModal"; // <-- IMPORT EDIT MODAL
+import EditTaskModal from "../components/EditTaskModal";
 
 export default function TasksManagement() {
   const [tasks, setTasks] = useState([]);
@@ -17,20 +17,14 @@ export default function TasksManagement() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
-  const [editModalOpen, setEditModalOpen] = useState(false); // <-- EDIT MODAL STATE
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
-  // ----------------------------
-  // TOAST GLOBAL
-  // ----------------------------
   const [toast, setToast] = useState("");
   const showToast = (message, duration = 2500) => {
     setToast(message);
     setTimeout(() => setToast(""), duration);
   };
 
-  // =========================
-  // TRAER TAREAS
-  // =========================
   const fetchTasks = async () => {
     try {
       const res = await api.get("/tasks/");
@@ -40,9 +34,6 @@ export default function TasksManagement() {
     }
   };
 
-  // =========================
-  // TRAER USUARIOS
-  // =========================
   const fetchUsers = async () => {
     try {
       const res = await api.get("/users/");
@@ -53,30 +44,32 @@ export default function TasksManagement() {
   };
 
   useEffect(() => {
-    fetchTasks();
-    fetchUsers();
+  
+     // carga inicial
+      fetchTasks();
+      fetchUsers();
+
+      // polling de tareas cada 5 segundos
+      const interval = setInterval(() => {
+        fetchTasks();
+      }, 5000);
+
+      // limpieza
+      return () => clearInterval(interval);
+
   }, []);
 
-  // =========================
-  // CREAR TAREA
-  // =========================
-  const addTask = async (taskData) => {
-    try {
-      const token = localStorage.getItem("access");
-      const res = await api.post("/tasks/", taskData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setTasks((prev) => [res.data, ...prev]);
-      showToast("Tarea creada correctamente");
-    } catch (err) {
-      console.error("Error al crear tarea:", err.response?.data || err);
-      alert(JSON.stringify(err.response?.data, null, 2));
-    }
-  };
+ const addTask = async (taskData) => {
+  try {
+    await api.post("/tasks/", taskData);
+    await fetchTasks(); // sincroniza con backend
+    showToast("Tarea creada correctamente");
+  } catch (err) {
+    console.error("Error al crear tarea:", err.response?.data || err);
+    alert(JSON.stringify(err.response?.data, null, 2));
+  }
+};
 
-  // =========================
-  // ELIMINAR TAREA
-  // =========================
   const deleteTask = async () => {
     try {
       await api.delete(`/tasks/${taskToDelete}/`);
@@ -89,38 +82,24 @@ export default function TasksManagement() {
     setTaskToDelete(null);
   };
 
-  // =========================
-  // PRIORIDAD
-  // =========================
   const priorityColor = (priority, border = false) => {
     if (border) {
       switch (priority) {
-        case "alta":
-          return "border-red-500";
-        case "media":
-          return "border-yellow-500";
-        case "baja":
-          return "border-green-500";
-        default:
-          return "border-gray-300";
+        case "alta": return "border-red-500";
+        case "media": return "border-yellow-500";
+        case "baja": return "border-green-500";
+        default: return "border-gray-300";
       }
     } else {
       switch (priority) {
-        case "alta":
-          return "bg-red-100 text-red-700";
-        case "media":
-          return "bg-yellow-100 text-yellow-700";
-        case "baja":
-          return "bg-green-100 text-green-700";
-        default:
-          return "bg-gray-100 text-gray-700";
+        case "alta": return "bg-red-100 text-red-700";
+        case "media": return "bg-yellow-100 text-yellow-700";
+        case "baja": return "bg-green-100 text-green-700";
+        default: return "bg-gray-100 text-gray-700";
       }
     }
   };
 
-  // =========================
-  // TRUNCAR DESCRIPCIÓN
-  // =========================
   const truncateWords = (text, numWords) => {
     if (!text) return "";
     const words = text.split(" ");
@@ -128,9 +107,6 @@ export default function TasksManagement() {
     return words.slice(0, numWords).join(" ") + "...";
   };
 
-  // =========================
-  // FILTROS
-  // =========================
   const [filters, setFilters] = useState({
     priority: "",
     status: "",
@@ -139,27 +115,24 @@ export default function TasksManagement() {
 
   const filteredTasks = tasks.filter((task) => {
     if (filters.priority && task.priority !== filters.priority) return false;
-
     const isOverdue = new Date(task.due_date) < new Date() && task.status !== "completada";
     if (filters.status) {
       if (filters.status === "vencida" && !isOverdue) return false;
       else if (filters.status !== "vencida" && task.status !== filters.status) return false;
     }
-
     if (filters.assigned_to && task.assigned_to?.id.toString() !== filters.assigned_to) return false;
-
     return true;
   });
 
   return (
     <div className="bg-orange-50 min-h-screen p-4">
-      {/* CONTENEDOR STICKY PRINCIPAL */}
+      {/* Sticky header */}
       <div className="sticky top-0 z-20 bg-orange-100 shadow-sm rounded-b-2xl backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between p-4 gap-3">
           <h1 className="text-2xl font-bold text-gray-800 flex-1">Gestión de Tareas</h1>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap w-full md:w-auto">
             <select
-              className="border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
+              className="flex-1 min-w-[120px] border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
               value={filters.priority}
               onChange={(e) => setFilters((prev) => ({ ...prev, priority: e.target.value }))}
             >
@@ -169,7 +142,7 @@ export default function TasksManagement() {
               <option value="baja">Baja</option>
             </select>
             <select
-              className="border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
+              className="flex-1 min-w-[120px] border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
               value={filters.status}
               onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
             >
@@ -180,7 +153,7 @@ export default function TasksManagement() {
               <option value="vencida">Vencida</option>
             </select>
             <select
-              className="border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
+              className="flex-1 min-w-[120px] border border-gray-300 rounded-2xl px-3 py-1 text-sm bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400 transition"
               value={filters.assigned_to}
               onChange={(e) => setFilters((prev) => ({ ...prev, assigned_to: e.target.value }))}
             >
@@ -191,7 +164,7 @@ export default function TasksManagement() {
             </select>
             <button
               onClick={() => setOpenModal(true)}
-              className="bg-orange-400 text-white px-4 py-2 rounded-lg hover:bg-orange-500 transition shadow-sm"
+              className="flex-1 min-w-[120px] bg-orange-400 text-white px-4 py-2 rounded-lg hover:bg-orange-500 transition shadow-sm"
             >
               Nueva Tarea
             </button>
@@ -199,7 +172,7 @@ export default function TasksManagement() {
         </div>
 
         <div
-          className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
+          className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
                      bg-orange-100 text-gray-700 text-sm font-semibold
                      px-3 py-2 border-t border-orange-300"
         >
@@ -226,7 +199,7 @@ export default function TasksManagement() {
             <div
               key={task.id}
               className={`shadow-md rounded-xl px-4 py-3
-                grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
+                grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
                 items-center hover:shadow-xl transition cursor-pointer
                 border-l-4 ${priorityColor(task.priority, true)} 
                 ${isOverdue ? "bg-rose-200" : "bg-white"}`}
@@ -279,7 +252,7 @@ export default function TasksManagement() {
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedTask(task);
-                    setEditModalOpen(true); // <-- ABRIR MODAL EDIT
+                    setEditModalOpen(true);
                   }}
                   className="px-3 py-1 bg-sky-500 text-white text-xs rounded hover:bg-sky-600 transition flex items-center gap-1"
                 >
@@ -341,7 +314,6 @@ export default function TasksManagement() {
         message="¿Seguro que deseas eliminar esta tarea?"
       />
 
-      {/* TOAST GLOBAL */}
       {toast && (
         <div className="fixed top-4 right-4 z-50">
           <div className="flex items-center gap-2 bg-green-500/90 text-white px-4 py-3 rounded-xl shadow-lg backdrop-blur-sm animate-toastFade">

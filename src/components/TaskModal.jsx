@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import api from "../services/api";
 
 const calculateDaysLeft = (dueDate) => {
   if (!dueDate) return "N/A";
@@ -31,32 +32,25 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    if (!task?.id) return;
+  if (!task?.id) return;
 
-    const fetchTaskDetails = async () => {
-      try {
-        const token = localStorage.getItem("access");
-        if (!token) throw new Error("No se encontró token");
+  const fetchTaskDetails = async () => {
+    try {
+      const response = await api.get(`/tasks/${task.id}/`);
 
-        const response = await axios.get(
-          `http://127.0.0.1:8000/api/tasks/${task.id}/`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+      const fullTask = response.data;
+      setAttachments(fullTask.attachments || []);
 
-        const fullTask = response.data;
-        setAttachments(fullTask.attachments || []);
+      setNewStatus(fullTask.status);
+      setLoaded(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-        if (!loaded) {
-          setNewStatus(fullTask.status);
-          setLoaded(true);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
+  fetchTaskDetails();
+}, [task?.id]);
 
-    fetchTaskDetails();
-  }, [task?.id, loaded]);
 
   useEffect(() => {
     if (!isOpen) setLoaded(false);
@@ -74,12 +68,10 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
       const token = localStorage.getItem("access");
       if (!token) throw new Error("No se encontró token");
 
-      const response = await axios.patch(
-        `http://127.0.0.1:8000/api/tasks/${task.id}/`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const response = await api.patch(
+      `/tasks/${task.id}/`,
+      { status: newStatus }
       );
-
       const updatedTask = {
         ...task,
         status: response.data.status,

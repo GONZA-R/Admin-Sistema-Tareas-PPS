@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import TaskModal from "../components/TaskModal";
+import api from "../services/api";
+
 
 // Calcula días restantes para vencimiento
 const daysLeft = (dueDate) => {
@@ -41,9 +43,7 @@ const EmployeeTaskList = () => {
         const token = localStorage.getItem("access");
         if (!token) throw new Error("No se encontró token");
 
-        const response = await axios.get("http://127.0.0.1:8000/api/tasks/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await api.get("/tasks/");
 
         const tasksFromBackend = response.data.map((t) => ({
           ...t,
