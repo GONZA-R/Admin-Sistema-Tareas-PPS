@@ -10,6 +10,9 @@ export default function NewTaskModal({ open, onClose, onCreate, users }) {
   const [dueDate, setDueDate] = useState("");
   const [assignedToId, setAssignedToId] = useState("");
 
+  // 👉 fecha actual en formato YYYY-MM-DD
+  const today = new Date().toISOString().split("T")[0];
+
   useEffect(() => {
     if (open) {
       setTitle("");
@@ -115,7 +118,15 @@ export default function NewTaskModal({ open, onClose, onCreate, users }) {
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                min={today}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+
+                  // si el vencimiento queda inválido, se limpia
+                  if (dueDate && e.target.value > dueDate) {
+                    setDueDate("");
+                  }
+                }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none shadow-sm"
                 required
               />
@@ -126,6 +137,7 @@ export default function NewTaskModal({ open, onClose, onCreate, users }) {
               <input
                 type="date"
                 value={dueDate}
+                min={startDate || today}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none shadow-sm"
               />

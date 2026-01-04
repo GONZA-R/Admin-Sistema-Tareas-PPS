@@ -130,7 +130,7 @@ export default function UserModal({ open, onClose, onSave, userToEdit, users }) 
               value={role}
               onChange={(e) => setRole(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition outline-none bg-white shadow-sm"
-            >
+            > <option value="admin_general">Administrador General</option>
               <option value="admin">Administrador</option>
               <option value="empleado">Empleado</option>
             </select>

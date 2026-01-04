@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import TaskModal from "../components/TaskModal";
+import api from "../services/api";
 
 // Calcula días restantes para vencimiento
 const daysLeft = (dueDate) => {
@@ -29,7 +29,6 @@ const isOverdue = (dueDate) => {
 const EmployeeTaskList = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
-  const [overdueFilter, setOverdueFilter] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,9 +40,7 @@ const EmployeeTaskList = () => {
         const token = localStorage.getItem("access");
         if (!token) throw new Error("No se encontró token");
 
-        const response = await axios.get("http://127.0.0.1:8000/api/tasks/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await api.get("/tasks/");
 
         const tasksFromBackend = response.data.map((t) => ({
           ...t,
@@ -96,103 +93,106 @@ const EmployeeTaskList = () => {
   };
 
   const filteredTasks = tasks.filter((task) => {
-    const statusMatch = statusFilter === "" || task.status === statusFilter;
+    const statusMatch =
+      statusFilter === "" ||
+      task.status === statusFilter ||
+      (statusFilter === "vencida" && isOverdue(task.due_date));
     const priorityMatch =
       priorityFilter === "" || task.priority === priorityFilter;
-    const overdueMatch = !overdueFilter || isOverdue(task.due_date);
-    return statusMatch && priorityMatch && overdueMatch;
+    return statusMatch && priorityMatch;
   });
 
-  if (loading) return <p>Cargando tareas...</p>;
+  if (loading)
+    return (
+      <p className="text-orange-700 font-medium p-6 text-center">
+        Cargando tareas...
+      </p>
+    );
 
   return (
     <div className="p-6 min-h-screen bg-gradient-to-b from-orange-50 via-orange-100 to-orange-50">
-      <h2 className="text-2xl font-bold mb-6 text-orange-800">Mis Tareas</h2>
+      <h2 className="text-3xl font-bold mb-6 text-orange-800 tracking-tight">
+        Mis Tareas
+      </h2>
 
       {/* FILTROS MODERNOS */}
-<div className="flex gap-4 mb-6 flex-wrap">
-  <div className="relative w-48">
-    <select
-      className="w-full bg-orange-400 text-white border border-orange-500 rounded-xl px-4 py-2 shadow-md focus:ring-2 focus:ring-orange-300 hover:bg-orange-500 transition appearance-none"
-      value={statusFilter}
-      onChange={(e) => setStatusFilter(e.target.value)}
-    >
-      <option value="">Todos los estados</option>
-      <option value="pendiente">Pendiente</option>
-      <option value="en_progreso">En Progreso</option>
-      <option value="completada">Completada</option>
-    </select>
-    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white">
-      ▼
-    </div>
-  </div>
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <div className="relative w-48">
+          <select
+            className="w-full bg-orange-400 text-white border border-orange-500 rounded-2xl px-4 py-2 shadow-md focus:ring-2 focus:ring-orange-300 hover:bg-orange-500 transition appearance-none"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_progreso">En Progreso</option>
+            <option value="completada">Completada</option>
+            <option value="vencida">Vencida</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white">
+            ▼
+          </div>
+        </div>
 
-  <div className="relative w-48">
-    <select
-      className="w-full bg-orange-400 text-white border border-orange-500 rounded-xl px-4 py-2 shadow-md focus:ring-2 focus:ring-orange-300 hover:bg-orange-500 transition appearance-none"
-      value={priorityFilter}
-      onChange={(e) => setPriorityFilter(e.target.value)}
-    >
-      <option value="">Todas las prioridades</option>
-      <option value="alta">Alta</option>
-      <option value="media">Media</option>
-      <option value="baja">Baja</option>
-    </select>
-    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white">
-      ▼
-    </div>
-  </div>
-
-  {/* Checkbox de vencidas */}
-  <label className="flex items-center gap-2 bg-orange-400 text-white border border-orange-500 rounded-xl px-4 py-2 shadow-md cursor-pointer hover:bg-orange-500 transition">
-    <input
-      type="checkbox"
-      checked={overdueFilter}
-      onChange={(e) => setOverdueFilter(e.target.checked)}
-      className="accent-orange-600 w-5 h-5"
-    />
-    Solo vencidas
-  </label>
-</div>
-
+        <div className="relative w-48">
+          <select
+            className="w-full bg-orange-400 text-white border border-orange-500 rounded-2xl px-4 py-2 shadow-md focus:ring-2 focus:ring-orange-300 hover:bg-orange-500 transition appearance-none"
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+          >
+            <option value="">Todas las prioridades</option>
+            <option value="alta">Alta</option>
+            <option value="media">Media</option>
+            <option value="baja">Baja</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white">
+            ▼
+          </div>
+        </div>
+      </div>
 
       {/* LISTA DE TAREAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTasks.length > 0 ? (
           filteredTasks.map((task) => {
             const leftDays = daysLeft(task.due_date);
-            const urgent = leftDays !== null && leftDays <= 7 && !isOverdue(task.due_date);
+            const urgent =
+              leftDays !== null && leftDays <= 7 && !isOverdue(task.due_date);
 
             return (
               <div
                 key={task.id}
                 onClick={() => openModal(task)}
-                className="p-5 bg-white rounded-3xl shadow-md hover:shadow-xl transition cursor-pointer border-l-4 border-orange-300"
+                className="p-5 bg-white rounded-3xl shadow-lg hover:shadow-2xl transition cursor-pointer border-l-4 border-orange-300 hover:scale-[1.02]"
               >
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-semibold text-lg text-orange-800">{task.title}</h3>
+                  <h3 className="font-semibold text-lg text-orange-800 truncate">
+                    {task.title}
+                  </h3>
                   {isOverdue(task.due_date) && (
-                    <span className="bg-red-200 text-red-800 text-xs px-2 py-1 rounded-full font-bold">
+                    <span className="bg-red-200 text-red-800 text-xs px-3 py-1 rounded-full font-bold">
                       VENCIDA
                     </span>
                   )}
                 </div>
 
-                <p className="text-sm text-gray-600 mb-3">{task.description}</p>
+                <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                  {task.description}
+                </p>
 
                 <div className="flex flex-wrap gap-3 text-sm text-gray-700">
                   <div>
                     Estado:{" "}
                     <span
-                      className={
+                      className={`font-semibold ${
                         isOverdue(task.due_date)
-                          ? "text-red-600 font-bold"
+                          ? "text-red-600"
                           : task.status === "pendiente"
                           ? "text-orange-500"
                           : task.status === "en_progreso"
                           ? "text-yellow-500"
                           : "text-green-500"
-                      }
+                      }`}
                     >
                       {isOverdue(task.due_date)
                         ? "VENCIDA"
@@ -203,13 +203,13 @@ const EmployeeTaskList = () => {
                   <div>
                     Prioridad:{" "}
                     <span
-                      className={
+                      className={`font-semibold ${
                         task.priority === "alta"
                           ? "text-red-500"
                           : task.priority === "media"
                           ? "text-yellow-500"
                           : "text-green-500"
-                      }
+                      }`}
                     >
                       {task.priority}
                     </span>
@@ -241,7 +241,9 @@ const EmployeeTaskList = () => {
             );
           })
         ) : (
-          <p className="text-gray-500 italic">No hay tareas disponibles.</p>
+          <p className="text-gray-500 italic col-span-full text-center">
+            No hay tareas disponibles.
+          </p>
         )}
       </div>
 

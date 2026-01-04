@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/api";
 
 const calculateDaysLeft = (dueDate) => {
   if (!dueDate) return "N/A";
@@ -35,28 +35,18 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
 
     const fetchTaskDetails = async () => {
       try {
-        const token = localStorage.getItem("access");
-        if (!token) throw new Error("No se encontró token");
-
-        const response = await axios.get(
-          `http://127.0.0.1:8000/api/tasks/${task.id}/`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
+        const response = await api.get(`/tasks/${task.id}/`);
         const fullTask = response.data;
         setAttachments(fullTask.attachments || []);
-
-        if (!loaded) {
-          setNewStatus(fullTask.status);
-          setLoaded(true);
-        }
+        setNewStatus(fullTask.status);
+        setLoaded(true);
       } catch (err) {
         console.error(err);
       }
     };
 
     fetchTaskDetails();
-  }, [task?.id, loaded]);
+  }, [task?.id]);
 
   useEffect(() => {
     if (!isOpen) setLoaded(false);
@@ -74,18 +64,8 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
       const token = localStorage.getItem("access");
       if (!token) throw new Error("No se encontró token");
 
-      const response = await axios.patch(
-        `http://127.0.0.1:8000/api/tasks/${task.id}/`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const updatedTask = {
-        ...task,
-        status: response.data.status,
-        attachments,
-      };
-
+      const response = await api.patch(`/tasks/${task.id}/`, { status: newStatus });
+      const updatedTask = { ...task, status: response.data.status, attachments };
       onUpdate(updatedTask);
       showToast("Estado actualizado correctamente", "success");
     } catch (error) {
@@ -96,11 +76,12 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50 px-2">
-      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-lg flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative">
+        {/* Toast */}
         {toast && (
           <div
-            className={`absolute top-4 right-4 px-4 py-2 rounded shadow-lg text-white font-semibold ${
-              toast.type === "success" ? "bg-green-400" : "bg-red-400"
+            className={`absolute top-4 right-4 px-5 py-3 rounded-lg shadow-lg text-white font-semibold ${
+              toast.type === "success" ? "bg-green-500" : "bg-red-500"
             }`}
           >
             {toast.message}
@@ -108,40 +89,40 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
         )}
 
         {/* Header */}
-        <div className="flex justify-between items-center p-4 bg-orange-200 text-orange-800 rounded-t-2xl">
-          <h2 className="text-xl font-bold flex items-center gap-2">
+        <div className="flex justify-between items-center p-5 bg-orange-200 text-orange-900 rounded-t-3xl shadow-inner">
+          <h2 className="text-2xl font-bold flex items-center gap-3">
             {task.title}
             {isOverdue(task.due_date) && (
-              <span className="bg-red-200 text-red-800 text-xs px-2 py-1 rounded-full">
+              <span className="bg-red-200 text-red-800 text-xs px-3 py-1 rounded-full font-bold">
                 VENCIDA
               </span>
             )}
           </h2>
           <button
             onClick={onClose}
-            className="text-orange-800 hover:text-orange-600 text-xl font-bold"
+            className="text-orange-900 hover:text-orange-700 text-2xl font-bold"
           >
             ×
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-4 text-gray-700">
-          <p>{task.description}</p>
+        <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-5 text-gray-700">
+          <p className="text-gray-600">{task.description}</p>
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="font-semibold">Estado:</span>{" "}
               <span
-                className={
+                className={`font-semibold ${
                   isOverdue(task.due_date)
-                    ? "text-red-600 font-bold"
+                    ? "text-red-600"
                     : newStatus === "pendiente"
                     ? "text-orange-500"
                     : newStatus === "en_progreso"
                     ? "text-yellow-500"
                     : "text-green-500"
-                }
+                }`}
               >
                 {isOverdue(task.due_date) ? "VENCIDA" : newStatus.toUpperCase()}
               </span>
@@ -149,13 +130,13 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
             <div>
               <span className="font-semibold">Prioridad:</span>{" "}
               <span
-                className={
+                className={`font-semibold ${
                   task.priority === "alta"
                     ? "text-red-500"
                     : task.priority === "media"
                     ? "text-yellow-500"
                     : "text-green-500"
-                }
+                }`}
               >
                 {task.priority}
               </span>
@@ -176,21 +157,35 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
 
           {/* Archivos adjuntos */}
           <div>
-            <span className="font-semibold">Archivos adjuntos:</span>
+            <span className="font-semibold text-gray-800">Archivos adjuntos:</span>
             {attachments.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2 mt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                 {attachments.map((a) => (
                   <a
                     key={a.id}
                     href={a.file}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-orange-50 hover:bg-orange-100 rounded-lg p-2 text-sm text-orange-700 flex justify-between items-center"
+                    className="flex items-center justify-between bg-orange-50 hover:bg-orange-100 rounded-xl p-3 shadow-sm transition hover:shadow-md"
                   >
-                    <span>{a.file.split("/").pop()}</span>
-                    <span className="text-gray-400 text-xs">
-                      {a.uploaded_by?.username || "Desconocido"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 text-orange-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M7 7h10M7 11h10M7 15h10M7 19h10"
+                        />
+                      </svg>
+                      <span className="truncate max-w-[180px]">{a.file.split("/").pop()}</span>
+                    </div>
+                    <span className="text-gray-400 text-xs">{a.uploaded_by?.username || "Desconocido"}</span>
                   </a>
                 ))}
               </div>
@@ -199,13 +194,13 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
             )}
           </div>
 
-          {/* Estado botones */}
-          <div className="flex gap-2 mt-4">
+          {/* Botones de cambio de estado */}
+          <div className="flex flex-wrap gap-3 mt-4">
             {["pendiente", "en_progreso", "completada"].map((s) => (
               <button
                 key={s}
                 onClick={() => setNewStatus(s)}
-                className={`flex-1 py-2 rounded-lg font-semibold transition ${
+                className={`flex-1 py-2 rounded-xl font-semibold transition text-center ${
                   newStatus === s
                     ? s === "pendiente"
                       ? "bg-orange-300 text-orange-900"
@@ -221,16 +216,16 @@ const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
           </div>
 
           {/* Guardar/Cancelar */}
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
             <button
               onClick={handleSaveChanges}
-              className="flex-1 bg-orange-300 text-orange-900 py-2 rounded-lg hover:bg-orange-400 transition"
+              className="flex-1 bg-orange-300 text-orange-900 py-2 rounded-xl hover:bg-orange-400 transition font-semibold"
             >
               Guardar cambios
             </button>
             <button
               onClick={onClose}
-              className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition"
+              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-xl hover:bg-gray-300 transition font-semibold"
             >
               Cancelar
             </button>

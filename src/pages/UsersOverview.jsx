@@ -8,6 +8,8 @@ export default function UsersOverview() {
     status: "",
   });
 
+  const loggedUsername = localStorage.getItem("username"); // 👈 usuario logueado
+
   useEffect(() => {
     api
       .get("/users/")
@@ -87,29 +89,52 @@ export default function UsersOverview() {
           </p>
         )}
 
-        {filteredUsers.map((u, index) => (
-          <div
-            key={u.id}
-            className={`grid grid-cols-[1.5fr_2fr_1fr_1fr] px-5 py-3 border-t text-sm transition-all hover:bg-orange-50 ${
-              index % 2 === 0 ? "bg-white" : "bg-orange-50/30"
-            }`}
-          >
-            <div className="font-medium truncate">{u.username}</div>
-            <div className="truncate text-gray-600">{u.email || "-"}</div>
-            <div className="capitalize">{u.role}</div>
-            <div>
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  u.is_active
-                    ? "bg-orange-100 text-orange-800"
-                    : "bg-gray-200 text-gray-700"
-                }`}
-              >
-                {u.is_active ? "Activo" : "Inactivo"}
-              </span>
+        {filteredUsers.map((u, index) => {
+          const isLoggedUser = u.username === loggedUsername;
+
+          return (
+            <div
+              key={u.id}
+              className={`grid grid-cols-[1.5fr_2fr_1fr_1fr] px-5 py-3 border-t text-sm transition-all
+                ${
+                  isLoggedUser
+                    ? "bg-indigo-50 ring-1 ring-indigo-200"
+                    : index % 2 === 0
+                    ? "bg-white"
+                    : "bg-orange-50/30"
+                }
+                hover:bg-orange-50
+              `}
+            >
+              <div className="font-medium truncate flex items-center gap-2">
+                {u.username}
+                {isLoggedUser && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500 text-white font-semibold">
+                    Vos
+                  </span>
+                )}
+              </div>
+
+              <div className="truncate text-gray-600">
+                {u.email || "-"}
+              </div>
+
+              <div className="capitalize">{u.role}</div>
+
+              <div>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    u.is_active
+                      ? "bg-orange-100 text-orange-800"
+                      : "bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  {u.is_active ? "Activo" : "Inactivo"}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

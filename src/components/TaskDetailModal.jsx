@@ -1,6 +1,7 @@
-import { X, Paperclip, Upload } from "lucide-react"; 
+import { X, Paperclip, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../services/api";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   const [status, setStatus] = useState("pendiente");
@@ -12,8 +13,13 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   const [delegatedTo, setDelegatedTo] = useState("");
   const [toast, setToast] = useState({ message: "", type: "" });
 
+  // 🔹 ConfirmModal
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState(null);
+
   useEffect(() => {
     if (!task) return;
+
     const fetchTaskDetail = async () => {
       try {
         const token = localStorage.getItem("access");
@@ -38,6 +44,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
         console.error("Error cargando detalle:", err);
       }
     };
+
     fetchTaskDetail();
   }, [task]);
 
@@ -53,13 +60,16 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
 
   const handleUploadFiles = async () => {
     if (filesToUpload.length === 0) return;
+
     try {
       setUploading(true);
       const token = localStorage.getItem("access");
+
       for (const file of filesToUpload) {
         const formData = new FormData();
         formData.append("task", task.id);
         formData.append("file", file);
+
         await api.post("/attachments/", formData, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -67,9 +77,11 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           },
         });
       }
+
       const res = await api.get(`/tasks/${task.id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       setAttachments(res.data.attachments || []);
       setFilesToUpload([]);
       showToast("Archivos subidos correctamente");
@@ -81,18 +93,26 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     }
   };
 
-  const handleDeleteAttachment = async (attachmentId) => {
-    if (!window.confirm("¿Eliminar este archivo?")) return;
+  // 🔹 Confirmación real de borrado
+  const confirmDeleteAttachment = async () => {
+    if (!attachmentToDelete) return;
+
     try {
       const token = localStorage.getItem("access");
-      await api.delete(`/attachments/${attachmentId}/`, {
+      await api.delete(`/attachments/${attachmentToDelete}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+
+      setAttachments((prev) =>
+        prev.filter((a) => a.id !== attachmentToDelete)
+      );
       showToast("Archivo eliminado");
     } catch (err) {
       console.error("Error eliminando archivo:", err);
       showToast("No se pudo eliminar el archivo", "error");
+    } finally {
+      setConfirmOpen(false);
+      setAttachmentToDelete(null);
     }
   };
 
@@ -100,11 +120,15 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     try {
       const token = localStorage.getItem("access");
       const payload = { status };
-      if (enableDelegation && delegatedTo) payload.delegated_to_id = delegatedTo;
+
+      if (enableDelegation && delegatedTo) {
+        payload.delegated_to_id = delegatedTo;
+      }
 
       const res = await api.patch(`/tasks/${task.id}/`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       onUpdate(res.data);
       showToast("Cambios guardados correctamente");
       onClose();
@@ -120,8 +144,13 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
 
         {/* HEADER */}
         <div className="flex items-center justify-between px-4 py-2 border-b bg-orange-50">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-800 truncate">{task.title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 truncate">
+            {task.title}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition"
+          >
             <X />
           </button>
         </div>
@@ -173,11 +202,15 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             </div>
             <div>
               <p className="text-gray-500 font-medium mb-1">Asignada a</p>
-              <p className="text-gray-700">{task.assigned_to?.username || "-"}</p>
+              <p className="text-gray-700">
+                {task.assigned_to?.username || "-"}
+              </p>
             </div>
             <div>
               <p className="text-gray-500 font-medium mb-1">Creada por</p>
-              <p className="text-gray-700">{task.created_by?.username || "-"}</p>
+              <p className="text-gray-700">
+                {task.created_by?.username || "-"}
+              </p>
             </div>
           </div>
 
@@ -191,7 +224,9 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
                   onChange={(e) => setEnableDelegation(e.target.checked)}
                   className="accent-orange-500"
                 />
-                <span className="font-medium text-orange-700">Delegar tarea</span>
+                <span className="font-medium text-orange-700">
+                  Delegar tarea
+                </span>
               </label>
 
               {enableDelegation && (
@@ -202,7 +237,9 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
                 >
                   <option value="">Seleccionar usuario</option>
                   {users.map((u) => (
-                    <option key={u.id} value={u.id}>{u.username}</option>
+                    <option key={u.id} value={u.id}>
+                      {u.username}
+                    </option>
                   ))}
                 </select>
               )}
@@ -211,46 +248,100 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
 
           {/* ATTACHMENTS */}
           <div className="border rounded-2xl p-2 bg-gray-50 text-sm">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2">
               <Paperclip size={14} />
               <p className="font-medium text-gray-700">Archivos adjuntos</p>
             </div>
 
             {attachments.length > 0 ? (
-              <ul className="space-y-1 mb-2 max-h-36 overflow-y-auto">
+              <ul className="space-y-1 mb-3 max-h-36 overflow-y-auto">
                 {attachments.map((a) => (
-                  <li key={a.id} className="flex justify-between text-xs sm:text-sm">
+                  <li
+                    key={a.id}
+                    className="flex justify-between items-center text-xs sm:text-sm"
+                  >
                     <a
                       href={a.file}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-indigo-600 hover:underline truncate max-w-[150px] sm:max-w-[250px]"
+                      className="text-indigo-600 hover:underline truncate max-w-[180px]"
                     >
                       {a.file.split("/").pop()}
                     </a>
-                    <button onClick={() => handleDeleteAttachment(a.id)} className="text-red-500">
+                    <button
+                      onClick={() => {
+                        setAttachmentToDelete(a.id);
+                        setConfirmOpen(true);
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                      title="Eliminar archivo"
+                    >
                       <X size={12} />
                     </button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-400 text-xs sm:text-sm mb-2">No hay archivos adjuntos</p>
+              <p className="text-gray-400 text-xs mb-3">
+                No hay archivos adjuntos
+              </p>
             )}
 
-            <div className="flex gap-1 flex-wrap">
-              <input
-                type="file"
-                multiple
-                onChange={(e) => setFilesToUpload([...e.target.files])}
-                className="text-xs text-gray-500"
-              />
+            {/* SELECCIÓN DE ARCHIVOS */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-indigo-600 font-medium">
+                <Upload size={14} />
+                Seleccionar archivos
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) =>
+                    setFilesToUpload(Array.from(e.target.files))
+                  }
+                  className="hidden"
+                />
+              </label>
+
+              {filesToUpload.length > 0 && (
+                <div className="bg-white border rounded-xl p-2">
+                  <p className="text-xs font-medium text-gray-600 mb-1">
+                    Archivos a subir:
+                  </p>
+                  <ul className="space-y-1 text-xs">
+                    {filesToUpload.map((file, index) => (
+                      <li
+                        key={index}
+                        className="flex justify-between items-center"
+                      >
+                        <span className="truncate max-w-[180px]">
+                          {file.name}
+                        </span>
+                        <button
+                          onClick={() =>
+                            setFilesToUpload((prev) =>
+                              prev.filter((_, i) => i !== index)
+                            )
+                          }
+                          className="text-red-400 hover:text-red-600"
+                          title="Quitar archivo"
+                        >
+                          <X size={12} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <button
                 onClick={handleUploadFiles}
                 disabled={uploading || filesToUpload.length === 0}
-                className="px-2 py-1 bg-indigo-600 text-white rounded-2xl disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-2xl text-xs font-medium disabled:opacity-50"
               >
-                <Upload size={12} />
+                <Upload size={14} />
+                {uploading
+                  ? "Subiendo archivos..."
+                  : `Subir ${filesToUpload.length || ""} archivo(s)`}
               </button>
             </div>
           </div>
@@ -258,10 +349,16 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
 
         {/* FOOTER */}
         <div className="p-2 sm:p-3 border-t flex flex-col sm:flex-row gap-1 sm:gap-2 text-sm">
-          <button onClick={onClose} className="flex-1 border py-2 rounded-2xl hover:bg-gray-100 transition font-medium">
+          <button
+            onClick={onClose}
+            className="flex-1 border py-2 rounded-2xl hover:bg-gray-100 transition font-medium"
+          >
             Cancelar
           </button>
-          <button onClick={handleSaveChanges} className="flex-1 bg-orange-500 text-white py-2 rounded-2xl hover:bg-orange-600 transition font-semibold">
+          <button
+            onClick={handleSaveChanges}
+            className="flex-1 bg-orange-500 text-white py-2 rounded-2xl hover:bg-orange-600 transition font-semibold"
+          >
             Guardar cambios
           </button>
         </div>
@@ -269,12 +366,25 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
         {/* TOAST */}
         {toast.message && (
           <div
-            className={`fixed bottom-4 right-4 px-4 py-2 rounded-2xl text-white shadow-md
-              ${toast.type === "error" ? "bg-red-500" : "bg-green-500"}`}
+            className={`fixed bottom-4 right-4 px-4 py-2 rounded-2xl text-white shadow-md ${
+              toast.type === "error" ? "bg-red-500" : "bg-green-500"
+            }`}
           >
             {toast.message}
           </div>
         )}
+
+        {/* CONFIRM MODAL */}
+        <ConfirmModal
+          open={confirmOpen}
+          title="Eliminar archivo"
+          message="¿Estás seguro de que querés eliminar este archivo?"
+          onConfirm={confirmDeleteAttachment}
+          onCancel={() => {
+            setConfirmOpen(false);
+            setAttachmentToDelete(null);
+          }}
+        />
       </div>
     </div>
   );

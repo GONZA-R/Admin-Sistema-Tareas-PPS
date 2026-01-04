@@ -15,35 +15,25 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // =========================
-        // TRAER TAREAS DEL BACKEND
-        // =========================
         const { data } = await api.get("/tasks/");
         setTasks(data);
 
         const now = new Date();
-
-        // =========================
-        // CALCULAR DÍAS RESTANTES
-        // =========================
         const tasksWithDays = data.map((t) => ({
           ...t,
           due_in_days: Math.ceil((new Date(t.due_date) - now) / (1000 * 60 * 60 * 24)),
         }));
 
-        // =========================
-        // PRÓXIMOS VENCIMIENTOS
-        // =========================
         const upcomingTasks = tasksWithDays
           .filter((t) => t.due_in_days >= 0 && t.due_in_days <= 7)
-          .map((t) => ({ ...t, priority: t.priority.charAt(0).toUpperCase() + t.priority.slice(1) }))
+          .map((t) => ({
+            ...t,
+            priority: t.priority.charAt(0).toUpperCase() + t.priority.slice(1),
+          }))
           .sort((a, b) => a.due_in_days - b.due_in_days);
 
         setUpcoming(upcomingTasks);
 
-        // =========================
-        // ESTADÍSTICAS GENERALES
-        // =========================
         setStats({
           total: data.length,
           completed: data.filter((t) => t.status === "completada").length,
@@ -60,7 +50,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="space-y-6 min-h-screen p-6 bg-gradient-to-br from-yellow-100 via-yellow-200 to-orange-100">
+    <div className="min-h-screen p-6 bg-gradient-to-br from-orange-50 via-orange-100 to-orange-50 space-y-8">
 
       {/* TARJETAS ESTADÍSTICAS */}
       <DashboardCards stats={stats} />
@@ -72,13 +62,19 @@ export default function Dashboard() {
         <div className="space-y-6">
 
           {/* GRÁFICO DE TAREAS */}
-          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300">
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl p-6 border border-orange-300
+                          shadow-[0_10px_15px_-3px_rgba(251,146,60,0.4),0_4px_6px_-2px_rgba(251,146,60,0.3)]
+                          hover:shadow-[0_25px_50px_-12px_rgba(251,146,60,0.4),0_10px_10px_-5px_rgba(251,146,60,0.3)]
+                          transition-shadow duration-300">
             <TasksChart />
           </div>
 
           {/* ACTIVIDAD RECIENTE */}
-          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300 max-h-[400px] overflow-y-auto">
-            <RecentActivity /> {/* ⚡ Ya trae los datos de la API por sí mismo */}
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl p-6 border border-orange-300 max-h-[420px] overflow-y-auto
+                          shadow-[0_10px_15px_-3px_rgba(251,146,60,0.4),0_4px_6px_-2px_rgba(251,146,60,0.3)]
+                          hover:shadow-[0_25px_50px_-12px_rgba(251,146,60,0.4),0_10px_10px_-5px_rgba(251,146,60,0.3)]
+                          transition-shadow duration-300">
+            <RecentActivity />
           </div>
         </div>
 
@@ -86,12 +82,18 @@ export default function Dashboard() {
         <div className="space-y-6">
 
           {/* TAREAS POR PRIORIDAD */}
-          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300">
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl p-6 border border-orange-300
+                          shadow-[0_10px_15px_-3px_rgba(251,146,60,0.4),0_4px_6px_-2px_rgba(251,146,60,0.3)]
+                          hover:shadow-[0_25px_50px_-12px_rgba(251,146,60,0.4),0_10px_10px_-5px_rgba(251,146,60,0.3)]
+                          transition-shadow duration-300">
             <PriorityBreakdown tasks={tasks} compact />
           </div>
 
           {/* PRÓXIMOS VENCIMIENTOS */}
-          <div className="bg-gradient-to-br from-orange-200 to-yellow-100 rounded-xl shadow-md p-4 border border-orange-300 max-h-[500px] overflow-y-auto">
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl p-6 border border-orange-300 max-h-[520px] overflow-y-auto
+                          shadow-[0_10px_15px_-3px_rgba(251,146,60,0.4),0_4px_6px_-2px_rgba(251,146,60,0.3)]
+                          hover:shadow-[0_25px_50px_-12px_rgba(251,146,60,0.4),0_10px_10px_-5px_rgba(251,146,60,0.3)]
+                          transition-shadow duration-300">
             <UpcomingDue tasks={upcoming} fullHeight />
           </div>
         </div>

@@ -1,7 +1,12 @@
 import axios from "axios";
 
+// =========================
+// BASE URL: usa la IP del servidor en red local
+// =========================
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://192.168.0.18:8000/api/";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/",
+  baseURL: BASE_URL,
 });
 
 // =========================
@@ -27,8 +32,7 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     if (
-      (error.response?.status === 401 ||
-        error.response?.status === 403) &&
+      (error.response?.status === 401 || error.response?.status === 403) &&
       !originalRequest._retry
     ) {
       originalRequest._retry = true;
@@ -37,8 +41,7 @@ api.interceptors.response.use(
         const refresh = localStorage.getItem("refresh");
 
         const res = await axios.post(
-          (import.meta.env.VITE_API_BASE_URL ||
-            "http://127.0.0.1:8000/api/") + "token/refresh/",
+          BASE_URL + "token/refresh/", // usar la misma baseURL
           { refresh }
         );
 
