@@ -44,8 +44,7 @@ export default function TasksManagement() {
   };
 
   useEffect(() => {
-  
-     // carga inicial
+      // carga inicial
       fetchTasks();
       fetchUsers();
 
@@ -56,19 +55,18 @@ export default function TasksManagement() {
 
       // limpieza
       return () => clearInterval(interval);
-
   }, []);
 
- const addTask = async (taskData) => {
-  try {
-    await api.post("/tasks/", taskData);
-    await fetchTasks(); // sincroniza con backend
-    showToast("Tarea creada correctamente");
-  } catch (err) {
-    console.error("Error al crear tarea:", err.response?.data || err);
-    alert(JSON.stringify(err.response?.data, null, 2));
-  }
-};
+  const addTask = async (taskData) => {
+    try {
+      await api.post("/tasks/", taskData);
+      await fetchTasks(); // sincroniza con backend
+      showToast("Tarea creada correctamente");
+    } catch (err) {
+      console.error("Error al crear tarea:", err.response?.data || err);
+      alert(JSON.stringify(err.response?.data, null, 2));
+    }
+  };
 
   const deleteTask = async () => {
     try {
@@ -123,6 +121,13 @@ export default function TasksManagement() {
     if (filters.assigned_to && task.assigned_to?.id.toString() !== filters.assigned_to) return false;
     return true;
   });
+
+  // 🔹 Función para formatear fechas a DD/MM/YYYY
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    const [year, month, day] = dateString.split("-");
+    return `${day}/${month}/${year}`;
+  };
 
   return (
     <div className="bg-orange-50 min-h-screen p-4">
@@ -225,11 +230,11 @@ export default function TasksManagement() {
               </div>
 
               <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
-                <FiClock className="w-4 h-4 text-gray-400" /> {task.start_date}
+                <FiClock className="w-4 h-4 text-gray-400" /> {formatDate(task.start_date)}
               </div>
 
               <div className={`text-sm mt-1 flex items-center gap-1 ${isOverdue ? "text-red-700 font-semibold" : "text-gray-500"}`}>
-                <FiCalendar className="w-4 h-4" /> {task.due_date}
+                <FiCalendar className="w-4 h-4" /> {formatDate(task.due_date)}
               </div>
 
               <div

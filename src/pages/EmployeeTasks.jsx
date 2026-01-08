@@ -2,28 +2,44 @@ import React, { useState, useEffect } from "react";
 import TaskModal from "../components/TaskModal";
 import api from "../services/api";
 
-// Calcula días restantes para vencimiento
-const daysLeft = (dueDate) => {
-  if (!dueDate) return null;
-  const today = new Date();
-  const due = new Date(dueDate);
-  const diffTime = due - today;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+// 🔹 Convierte ISO a Date local sin restar un día
+const parseLocalDate = (isoDateStr) => {
+  if (!isoDateStr) return null;
+  const [year, month, day] = isoDateStr.split("-").map(Number);
+  return new Date(year, month - 1, day); // month-1 porque JS cuenta de 0 a 11
 };
 
+// 🔹 Formatea fecha a DD/MM/YYYY usando parseLocalDate
 const formatDate = (d) => {
   if (!d) return "Sin fecha";
   try {
-    return new Date(d).toLocaleDateString("es-AR");
+    const date = typeof d === "string" ? parseLocalDate(d.split("T")[0]) : d;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   } catch {
     return d;
   }
 };
 
+// 🔹 Verifica si la tarea está vencida usando parseLocalDate
 const isOverdue = (dueDate) => {
   if (!dueDate) return false;
-  return new Date(dueDate) < new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // ignorar hora
+  const due = parseLocalDate(dueDate);
+  return due < today;
+};
+
+// 🔹 Calcula días restantes usando parseLocalDate
+const daysLeft = (dueDate) => {
+  if (!dueDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = parseLocalDate(dueDate);
+  const diffTime = due - today;
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
 const EmployeeTaskList = () => {
@@ -220,9 +236,7 @@ const EmployeeTaskList = () => {
                     {!isOverdue(task.due_date) && leftDays !== null && (
                       <span
                         className={`ml-1 px-2 py-1 text-xs rounded-full font-semibold ${
-                          urgent
-                            ? "bg-red-200 text-red-800"
-                            : "bg-orange-100 text-orange-800"
+                          urgent ? "bg-red-200 text-red-800" : "bg-orange-100 text-orange-800"
                         }`}
                       >
                         {leftDays} día(s)
@@ -231,6 +245,7 @@ const EmployeeTaskList = () => {
                   </div>
 
                   <div>Creado por: {task.created_by?.username || "Desconocido"}</div>
+                  <div>Fecha creación: {formatDate(task.created_at)}</div>
                   <div>Asignado a: {task.assigned_to?.username || "Sin asignar"}</div>
 
                   {task.attachments && task.attachments.length > 0 && (

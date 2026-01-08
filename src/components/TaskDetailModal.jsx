@@ -3,6 +3,16 @@ import { useEffect, useState } from "react";
 import api from "../services/api";
 import ConfirmModal from "../components/ConfirmModal";
 
+// 🔹 Función para formatear fechas a DD/MM/YYYY
+const formatDate = (dateStr) => {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   const [status, setStatus] = useState("pendiente");
   const [attachments, setAttachments] = useState([]);
@@ -12,6 +22,7 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   const [enableDelegation, setEnableDelegation] = useState(false);
   const [delegatedTo, setDelegatedTo] = useState("");
   const [toast, setToast] = useState({ message: "", type: "" });
+  const [saving, setSaving] = useState(false);
 
   // 🔹 ConfirmModal
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -93,7 +104,6 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     }
   };
 
-  // 🔹 Confirmación real de borrado
   const confirmDeleteAttachment = async () => {
     if (!attachmentToDelete) return;
 
@@ -116,7 +126,15 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     }
   };
 
+  // 🔹 Optimistic update al guardar cambios
   const handleSaveChanges = async () => {
+    if (!task) return;
+    setSaving(true);
+
+    const oldStatus = task.status;
+    onUpdate({ ...task, status });
+    showToast("Actualizando estado...");
+
     try {
       const token = localStorage.getItem("access");
       const payload = { status };
@@ -125,16 +143,18 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
         payload.delegated_to_id = delegatedTo;
       }
 
-      const res = await api.patch(`/tasks/${task.id}/`, payload, {
+      await api.patch(`/tasks/${task.id}/`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      onUpdate(res.data);
       showToast("Cambios guardados correctamente");
       onClose();
     } catch (err) {
+      onUpdate({ ...task, status: oldStatus });
       console.error("Error guardando cambios:", err.response?.data || err);
       showToast("Error al guardar cambios", "error");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -194,11 +214,11 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs sm:text-sm">
             <div>
               <p className="text-gray-500 font-medium mb-1">Inicio</p>
-              <p className="text-gray-700">{task.start_date}</p>
+              <p className="text-gray-700">{formatDate(task.start_date)}</p>
             </div>
             <div>
               <p className="text-gray-500 font-medium mb-1">Vencimiento</p>
-              <p className="text-gray-700">{task.due_date}</p>
+              <p className="text-gray-700">{formatDate(task.due_date)}</p>
             </div>
             <div>
               <p className="text-gray-500 font-medium mb-1">Asignada a</p>
@@ -357,9 +377,10 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           </button>
           <button
             onClick={handleSaveChanges}
+            disabled={saving}
             className="flex-1 bg-orange-500 text-white py-2 rounded-2xl hover:bg-orange-600 transition font-semibold"
           >
-            Guardar cambios
+            {saving ? "Guardando..." : "Guardar cambios"}
           </button>
         </div>
 
