@@ -1,27 +1,45 @@
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
 
-const calculateDaysLeft = (dueDate) => {
-  if (!dueDate) return "N/A";
-  const today = new Date();
-  const due = new Date(dueDate);
-  const diffTime = due - today;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays >= 0 ? `${diffDays} día(s)` : "VENCIDA";
+// 🔹 Convierte ISO a Date local sin restar un día
+const parseLocalDate = (isoDateStr) => {
+  if (!isoDateStr) return null;
+  const [year, month, day] = isoDateStr.split("-").map(Number);
+  return new Date(year, month - 1, day); // month-1 porque JS cuenta de 0 a 11
 };
 
+// 🔹 Formatea fecha a DD/MM/YYYY usando parseLocalDate
 const formatDate = (d) => {
   if (!d) return "Sin fecha";
   try {
-    return new Date(d).toLocaleDateString("es-AR");
+    const date = typeof d === "string" ? parseLocalDate(d) : d;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   } catch {
     return d;
   }
 };
 
+// 🔹 Verifica si la tarea está vencida usando parseLocalDate
 const isOverdue = (dueDate) => {
   if (!dueDate) return false;
-  return new Date(dueDate) < new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // ignorar hora
+  const due = parseLocalDate(dueDate);
+  return due < today;
+};
+
+// 🔹 Calcula días restantes usando parseLocalDate
+const calculateDaysLeft = (dueDate) => {
+  if (!dueDate) return "N/A";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = parseLocalDate(dueDate);
+  const diffTime = due - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 ? `${diffDays} día(s)` : "VENCIDA";
 };
 
 const TaskModal = ({ isOpen, onClose, task, onUpdate }) => {
