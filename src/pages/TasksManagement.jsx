@@ -44,23 +44,20 @@ export default function TasksManagement() {
   };
 
   useEffect(() => {
-      // carga inicial
       fetchTasks();
       fetchUsers();
 
-      // polling de tareas cada 5 segundos
       const interval = setInterval(() => {
         fetchTasks();
       }, 5000);
 
-      // limpieza
       return () => clearInterval(interval);
   }, []);
 
   const addTask = async (taskData) => {
     try {
       await api.post("/tasks/", taskData);
-      await fetchTasks(); // sincroniza con backend
+      await fetchTasks();
       showToast("Tarea creada correctamente");
     } catch (err) {
       console.error("Error al crear tarea:", err.response?.data || err);
@@ -98,22 +95,26 @@ export default function TasksManagement() {
     }
   };
 
-  const truncateWords = (text, numWords) => {
-    if (!text) return "";
-    const words = text.split(" ");
-    if (words.length <= numWords) return text;
-    return words.slice(0, numWords).join(" ") + "...";
-  };
-
   const [filters, setFilters] = useState({
     priority: "",
     status: "",
     assigned_to: "",
   });
 
+  // 🔹 Función para comparar fechas solo por día (YYYYMMDD)
+  const formatForCompare = (date) => {
+    if (!date) return null;
+    if (typeof date === "string") return date.replaceAll("-", ""); // YYYYMMDD
+    return date.toISOString().split("T")[0].replaceAll("-", "");
+  };
+
   const filteredTasks = tasks.filter((task) => {
     if (filters.priority && task.priority !== filters.priority) return false;
-    const isOverdue = new Date(task.due_date) < new Date() && task.status !== "completada";
+
+    const todayNum = Number(formatForCompare(new Date()));
+    const dueNum = task.due_date ? Number(formatForCompare(task.due_date)) : null;
+    const isOverdue = dueNum && dueNum < todayNum && task.status !== "completada";
+
     if (filters.status) {
       if (filters.status === "vencida" && !isOverdue) return false;
       else if (filters.status !== "vencida" && task.status !== filters.status) return false;
@@ -122,7 +123,6 @@ export default function TasksManagement() {
     return true;
   });
 
-  // 🔹 Función para formatear fechas a DD/MM/YYYY
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     const [year, month, day] = dateString.split("-");
@@ -131,7 +131,6 @@ export default function TasksManagement() {
 
   return (
     <div className="bg-orange-50 min-h-screen p-4">
-      {/* Sticky header */}
       <div className="sticky top-0 z-20 bg-orange-100 shadow-sm rounded-b-2xl backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between p-4 gap-3">
           <h1 className="text-2xl font-bold text-gray-800 flex-1">Gestión de Tareas</h1>
@@ -191,19 +190,20 @@ export default function TasksManagement() {
         </div>
       </div>
 
-      {/* LISTADO */}
       <div className="space-y-2 pb-8 mt-2">
         {filteredTasks.length === 0 && (
           <p className="text-center text-gray-500">No hay tareas cargadas.</p>
         )}
 
         {filteredTasks.map((task) => {
-          const isOverdue = new Date(task.due_date) < new Date() && task.status !== "completada";
+          const todayNum = Number(formatForCompare(new Date()));
+          const dueNum = task.due_date ? Number(formatForCompare(task.due_date)) : null;
+          const isOverdue = dueNum && dueNum < todayNum && task.status !== "completada";
 
           return (
             <div
               key={task.id}
-              className={`shadow-md rounded-xl px-4 py-3
+              className={`relative shadow-md rounded-xl px-4 py-3
                 grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_0.7fr]
                 items-center hover:shadow-xl transition cursor-pointer
                 border-l-4 ${priorityColor(task.priority, true)} 
@@ -213,10 +213,18 @@ export default function TasksManagement() {
                 setDetailOpen(true);
               }}
             >
+              {isOverdue && (
+                <div className="absolute top-2 right-16 bg-rose-600 text-white text-xs font-bold px-2 py-0.5 rounded">
+                  VENCIDA
+                </div>
+              )}
+
               <div className="flex flex-col">
-                <h2 className="font-semibold text-gray-800 truncate">{task.title}</h2>
+                <h2 className="font-semibold text-gray-800 truncate overflow-hidden whitespace-nowrap">
+                  {task.title}
+                </h2>
                 <p className="text-gray-500 text-sm mt-1 line-clamp-2">
-                  {truncateWords(task.description, 12)}
+                  {task.description}
                 </p>
               </div>
 
@@ -279,7 +287,6 @@ export default function TasksManagement() {
         })}
       </div>
 
-      {/* MODALES */}
       <NewTaskModal
         open={openModal}
         onClose={() => setOpenModal(false)}

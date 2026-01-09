@@ -1,16 +1,48 @@
-import { X, Paperclip, Upload } from "lucide-react";
+import { X, Paperclip, Upload, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../services/api";
 import ConfirmModal from "../components/ConfirmModal";
 
-// 🔹 Función para formatear fechas a DD/MM/YYYY
+// 🔹 Formatea DateField (YYYY-MM-DD) sin restar un día
 const formatDate = (dateStr) => {
   if (!dateStr) return "-";
-  const d = new Date(dateStr);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
+  const [year, month, day] = dateStr.split("-");
   return `${day}/${month}/${year}`;
+};
+
+// 🔹 Formatea DateTimeField a DD/MM/YYYY HH:MM:SS en zona horaria Argentina
+const formatDateTime = (dateTimeStr) => {
+  if (!dateTimeStr) return "-";
+  const d = new Date(dateTimeStr);
+  return d.toLocaleString("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
+// 🔹 Calcula días para vencer de forma confiable
+const calculateDueInDays = (dueDateStr) => {
+  if (!dueDateStr) return Infinity;
+
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = today.getMonth() + 1;
+  const dd = today.getDate();
+
+  const todayStr = `${yyyy}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
+  const [dueYear, dueMonth, dueDay] = dueDateStr.split("-").map(Number);
+  const [todayYear, todayMonth, todayDay] = todayStr.split("-").map(Number);
+
+  const dueDate = new Date(dueYear, dueMonth - 1, dueDay);
+  const todayDate = new Date(todayYear, todayMonth - 1, todayDay);
+
+  const diffMs = dueDate.getTime() - todayDate.getTime();
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
 };
 
 export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
@@ -27,6 +59,9 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
   // 🔹 ConfirmModal
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [attachmentToDelete, setAttachmentToDelete] = useState(null);
+
+  // 🔹 Modal info archivos
+  const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
     if (!task) return;
@@ -126,7 +161,6 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
     }
   };
 
-  // 🔹 Optimistic update al guardar cambios
   const handleSaveChanges = async () => {
     if (!task) return;
     setSaving(true);
@@ -157,6 +191,9 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
       setSaving(false);
     }
   };
+
+  // 🔹 Info archivos permitidos
+  const ALLOWED_FILES_INFO = "Tipos permitidos: .pdf, .txt, .doc, .docx, .odt, .xls, .xlsx, .ods, .csv, .ppt, .pptx, .odp, .jpg, .jpeg, .png, .bmp, .gif, .zip, .rar, .7z. Tamaño máximo: 20 MB";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-2">
@@ -218,7 +255,16 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             </div>
             <div>
               <p className="text-gray-500 font-medium mb-1">Vencimiento</p>
-              <p className="text-gray-700">{formatDate(task.due_date)}</p>
+              <p className="text-gray-700">
+                {formatDate(task.due_date)}{" "}
+                <span
+                  className={`text-xs font-medium ${
+                    calculateDueInDays(task.due_date) <= 0 ? "text-red-600" : "text-gray-400"
+                  }`}
+                >
+                  ({calculateDueInDays(task.due_date)} {calculateDueInDays(task.due_date) === 1 ? "día" : "días"} para vencer)
+                </span>
+              </p>
             </div>
             <div>
               <p className="text-gray-500 font-medium mb-1">Asignada a</p>
@@ -229,7 +275,10 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
             <div>
               <p className="text-gray-500 font-medium mb-1">Creada por</p>
               <p className="text-gray-700">
-                {task.created_by?.username || "-"}
+                {task.created_by?.username || "-"} <br />
+                <span className="text-xs text-gray-400">
+                  {formatDateTime(task.created_at)}
+                </span>
               </p>
             </div>
           </div>
@@ -267,11 +316,38 @@ export default function TaskDetailModal({ open, onClose, task, onUpdate }) {
           )}
 
           {/* ATTACHMENTS */}
-          <div className="border rounded-2xl p-2 bg-gray-50 text-sm">
+          <div className="border rounded-2xl p-2 bg-gray-50 text-sm relative">
             <div className="flex items-center gap-2 mb-2">
               <Paperclip size={14} />
               <p className="font-medium text-gray-700">Archivos adjuntos</p>
+              <button
+                onClick={() => setInfoOpen(true)}
+                className="ml-1 text-gray-400 hover:text-gray-600 transition"
+              >
+                <Info size={14} />
+              </button>
             </div>
+
+            {/* Info modal */}
+            {infoOpen && (
+              <div
+                className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+                onClick={() => setInfoOpen(false)}
+              >
+                <div
+                  className="bg-white rounded-2xl p-4 max-w-xs w-11/12 shadow-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="text-sm text-gray-700">{ALLOWED_FILES_INFO}</p>
+                  <button
+                    className="mt-3 w-full bg-orange-500 text-white py-2 rounded-xl font-medium hover:bg-orange-600"
+                    onClick={() => setInfoOpen(false)}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            )}
 
             {attachments.length > 0 ? (
               <ul className="space-y-1 mb-3 max-h-36 overflow-y-auto">

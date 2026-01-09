@@ -22,10 +22,19 @@ export default function Navbar({ setIsAuthenticated }) {
   const userMenuRef = useRef(null);
 
   const handleLogout = () => {
-    localStorage.clear();
-    setIsAuthenticated(false);
-    navigate("/login");
-  };
+  // 1️⃣ Limpiar localStorage y sessionStorage
+  localStorage.clear();
+  sessionStorage.clear();
+
+  // 2️⃣ Limpiar cookies de sesión de Django y CSRF
+  document.cookie = "csrftoken=; Max-Age=0; path=/";
+  document.cookie = "sessionid=; Max-Age=0; path=/";
+
+  // 3️⃣ Actualizar estado de autenticación y redirigir
+  setIsAuthenticated(false);
+  navigate("/login");
+};
+
 
   const fetchNotifications = async () => {
     try {

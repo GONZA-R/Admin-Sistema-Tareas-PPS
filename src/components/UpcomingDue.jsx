@@ -2,6 +2,13 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, User, AlertTriangle } from "lucide-react";
 
+// 🔹 Función para mostrar fecha sin restar un día
+const formatDate = (dateStr) => {
+  if (!dateStr) return "-";
+  const [year, month, day] = dateStr.split("-");
+  return `${day}/${month}/${year}`;
+};
+
 export default function UpcomingDue({ tasks, fullHeight = false }) {
   const [selectedTask, setSelectedTask] = useState(null);
   const [upcomingTasks, setUpcomingTasks] = useState([]);
@@ -27,12 +34,29 @@ export default function UpcomingDue({ tasks, fullHeight = false }) {
     },
   };
 
+  // 🔹 Nueva función de cálculo de días confiable
   const calculateDueInDays = (dueDateStr) => {
+    if (!dueDateStr) return Infinity;
+
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(dueDateStr);
-    dueDate.setHours(0, 0, 0, 0);
-    return Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+    const yyyy = today.getFullYear();
+    const mm = today.getMonth() + 1;
+    const dd = today.getDate();
+
+    // Convertimos hoy en "YYYY-MM-DD"
+    const todayStr = `${yyyy}-${mm.toString().padStart(2, "0")}-${dd
+      .toString()
+      .padStart(2, "0")}`;
+
+    // Parseamos ambas fechas como enteros de día
+    const [dueYear, dueMonth, dueDay] = dueDateStr.split("-").map(Number);
+    const [todayYear, todayMonth, todayDay] = todayStr.split("-").map(Number);
+
+    const dueDate = new Date(dueYear, dueMonth - 1, dueDay);
+    const todayDate = new Date(todayYear, todayMonth - 1, todayDay);
+
+    const diffMs = dueDate.getTime() - todayDate.getTime();
+    return Math.round(diffMs / (1000 * 60 * 60 * 24));
   };
 
   useEffect(() => {
@@ -128,58 +152,57 @@ export default function UpcomingDue({ tasks, fullHeight = false }) {
       </div>
 
       <AnimatePresence>
-  {selectedTask && (
-    <motion.div
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={() => setSelectedTask(null)}
-    >
-      <motion.div
-        className="bg-gradient-to-br from-orange-50 via-orange-100 to-white w-[640px] max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl p-6 border border-orange-200"
-        initial={{ y: 50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 50, opacity: 0 }}
-        transition={{ duration: 0.25 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-2xl font-semibold text-orange-800">{selectedTask.title}</h2>
-          {selectedTask.due_in_days <= 1 && (
-            <span className="flex items-center gap-1 text-orange-600 font-semibold text-sm">
-              <AlertTriangle size={16} /> Urgente
-            </span>
-          )}
-        </div>
+        {selectedTask && (
+          <motion.div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedTask(null)}
+          >
+            <motion.div
+              className="bg-gradient-to-br from-orange-50 via-orange-100 to-white w-[640px] max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl p-6 border border-orange-200"
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-semibold text-orange-800">{selectedTask.title}</h2>
+                {selectedTask.due_in_days <= 1 && (
+                  <span className="flex items-center gap-1 text-orange-600 font-semibold text-sm">
+                    <AlertTriangle size={16} /> Urgente
+                  </span>
+                )}
+              </div>
 
-        <div className="grid grid-cols-2 gap-4 text-sm text-gray-700 mb-4">
-          <div>
-            <strong>Prioridad:</strong> {selectedTask.priority}
-          </div>
-          <div>
-            <strong>Vence en:</strong> {selectedTask.due_in}
-          </div>
-          <div>
-            <strong>Asignado a:</strong> {getAssigneeName(selectedTask)}
-          </div>
-          <div>
-            <strong>Fecha límite:</strong>{" "}
-            {new Date(selectedTask.due_date).toLocaleDateString("es-AR")}
-          </div>
-        </div>
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-700 mb-4">
+                <div>
+                  <strong>Prioridad:</strong> {selectedTask.priority}
+                </div>
+                <div>
+                  <strong>Vence en:</strong> {selectedTask.due_in}
+                </div>
+                <div>
+                  <strong>Asignado a:</strong> {getAssigneeName(selectedTask)}
+                </div>
+                <div>
+                  <strong>Fecha límite:</strong>{" "}
+                  {formatDate(selectedTask.due_date)}
+                </div>
+              </div>
 
-        <button
-          className="mt-3 w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-xl font-semibold shadow-lg transition"
-          onClick={() => setSelectedTask(null)}
-        >
-          Cerrar
-        </button>
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
-
+              <button
+                className="mt-3 w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-xl font-semibold shadow-lg transition"
+                onClick={() => setSelectedTask(null)}
+              >
+                Cerrar
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

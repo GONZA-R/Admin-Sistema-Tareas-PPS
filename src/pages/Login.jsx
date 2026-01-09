@@ -61,8 +61,8 @@ export default function Login({ setIsAuthenticated, setRole }) {
         <div className="absolute inset-0 bg-gradient-to-br from-black/30 to-black/5 backdrop-blur-sm"></div>
         <div className="relative z-10 max-w-xl">
           <h1 className="text-5xl font-extrabold mb-4 tracking-tight drop-shadow-lg">
-  TASK <span className="bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-orange-500 to-red-600">RVJ7</span>
-</h1>
+            TASK <span className="bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-orange-500 to-red-600">RVJ7</span>
+          </h1>
 
           <p className="text-xl mb-10 opacity-90 leading-relaxed">
             Sistema avanzado de gestión de tareas.
@@ -131,16 +131,6 @@ export default function Login({ setIsAuthenticated, setRole }) {
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
-          </div>
-
-          {/* Recuperación */}
-          <div className="text-right mb-4">
-            <button
-              type="button"
-              className="text-orange-600 hover:underline text-sm"
-            >
-              ¿Olvidaste tu contraseña?
-            </button>
           </div>
 
           {/* Botón */}
